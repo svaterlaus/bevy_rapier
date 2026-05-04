@@ -37,7 +37,7 @@ use crate::prelude::{
 #[derive(Component, Default, Reflect, Clone)]
 pub struct SimulationToRenderTime {
     /// Difference between simulation and rendering time
-    pub diff: f32,
+    pub diff: crate::math::Real,
 }
 
 /// Marker component for to access the default [`ReadRapierContext`].
@@ -464,8 +464,8 @@ impl<'a> RapierQueryPipeline<'a> {
         #[cfg(feature = "dim3")] aabb: bevy::math::bounding::Aabb3d,
     ) -> impl Iterator<Item = Entity> + 'a {
         let scaled_aabb = Aabb {
-            mins: aabb.min.into(),
-            maxs: aabb.max.into(),
+            mins: crate::math::AsPrecise::as_precise(aabb.min).into(),
+            maxs: crate::math::AsPrecise::as_precise(aabb.max).into(),
         };
         self.query_pipeline
             .intersect_aabb_conservative(scaled_aabb)
@@ -615,7 +615,7 @@ impl RapierRigidBodySet {
         &self,
         joints: &RapierContextJoints,
         entity: Entity,
-    ) -> Option<f32> {
+    ) -> Option<crate::math::Real> {
         let joint_handle = joints.entity2impulse_joint().get(&entity)?;
         let impulse_joint = joints.impulse_joints.get(*joint_handle)?;
         let revolute_joint = impulse_joint.data.as_revolute()?;
@@ -735,7 +735,7 @@ impl RapierContextSimulation {
             } => {
                 self.integration_parameters.dt = dt;
 
-                sim_to_render_time.diff += time.delta_secs();
+                sim_to_render_time.diff += Real::from(time.delta_secs());
 
                 while sim_to_render_time.diff > 0.0 {
                     // NOTE: in this comparison we do the same computations we
@@ -783,7 +783,8 @@ impl RapierContextSimulation {
                 time_scale,
                 substeps,
             } => {
-                self.integration_parameters.dt = (time.delta_secs() * time_scale).min(max_dt);
+                self.integration_parameters.dt =
+                    (Real::from(time.delta_secs()) * time_scale).min(max_dt);
 
                 let mut substep_integration_parameters = self.integration_parameters;
                 substep_integration_parameters.dt /= substeps as Real;

@@ -1,8 +1,8 @@
 [package]
-name = "bevy_rapier2d"
+name = "bevy_rapier2d_f64"
 version = "0.33.0"
 authors = ["Sébastien Crozet <developer@crozet.re>"]
-description = "2-dimensional physics engine in Rust, official Bevy plugin."
+description = "2-dimensional physics engine in Rust, official Bevy plugin (double-precision Rapier)."
 documentation = "http://docs.rs/bevy_rapier2d"
 homepage = "http://rapier.rs"
 repository = "https://github.com/dimforge/bevy_rapier"
@@ -15,7 +15,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 path = "../src/lib.rs"
-required-features = ["dim2", "f32"]
+required-features = ["dim2", "f64"]
 
 [lints]
 rust.unexpected_cfgs = { level = "warn", check-cfg = [
@@ -26,35 +26,35 @@ clippy = { needless_lifetimes = "allow" }
 [features]
 default = [
     "dim2",
-    "f32",
+    "f64",
     "async-collider",
     "debug-render-2d",
     "picking-backend",
     "to-bevy-mesh",
 ]
 dim2 = []
-f32 = []
+f64 = []
 debug-render-2d = [
     "bevy/bevy_core_pipeline",
     "bevy/bevy_sprite",
     "bevy/bevy_gizmos",
-    "rapier2d/debug-render",
+    "rapier2d-f64/debug-render",
     "bevy/bevy_asset",
 ]
 debug-render-3d = [
     "bevy/bevy_core_pipeline",
     "bevy/bevy_pbr",
     "bevy/bevy_gizmos",
-    "rapier2d/debug-render",
+    "rapier2d-f64/debug-render",
     "bevy/bevy_asset",
 ]
-rapier-debug-render = ["rapier2d/debug-render"]
+rapier-debug-render = ["rapier2d-f64/debug-render"]
 
-parallel = ["rapier2d/parallel"]
-simd-stable = ["rapier2d/simd-stable"]
-simd-nightly = ["rapier2d/simd-nightly"]
-serde-serialize = ["rapier2d/serde-serialize", "bevy/serialize", "serde"]
-enhanced-determinism = ["rapier2d/enhanced-determinism"]
+parallel = ["rapier2d-f64/parallel"]
+simd-stable = ["rapier2d-f64/simd-stable"]
+simd-nightly = ["rapier2d-f64/simd-nightly"]
+serde-serialize = ["rapier2d-f64/serde-serialize", "bevy/serialize", "serde"]
+enhanced-determinism = ["rapier2d-f64/enhanced-determinism"]
 headless = []
 picking-backend = ["bevy/bevy_picking", "bevy/bevy_render"]
 async-collider = [
@@ -68,7 +68,7 @@ to-bevy-mesh = ["bevy/bevy_render", "bevy/bevy_asset"]
 [dependencies]
 bevy = { version = "0.18.0", default-features = false, features = ["std"] }
 nalgebra = { version = "0.34.1", features = ["convert-glam030"] }
-rapier2d = "0.31.0"
+rapier2d-f64 = "0.31.0"
 bitflags = "2.10.0"
 log = "0.4"
 serde = { version = "1", features = ["derive"], optional = true }
@@ -101,19 +101,17 @@ bevy_mod_debugdump = "0.15.0"
 serde_json = "1.0"
 
 [package.metadata.docs.rs]
-# Enable all the features when building the docs on docs.rs
 features = ["debug-render-2d", "serde-serialize"]
 
 [package.metadata.cargo-all-features]
 
 denylist = ["simd-nightly"]
 
-# Features "dim2" and "dim3" are incompatible, so skip permutations including them
 skip_feature_sets = [["enhanced-determinism", "simd-stable"]]
 
 always_include_features = ["dim2"]
 
-# The maximum number of features to try at once. Does not count features from `always_include_features`.
-# This is useful for reducing the number of combinations run for a crate with a large amount of features,
-# since in most cases a bug just needs a small set of 2-3 features to reproduce.
-max_combination_size = 1
+
+[[example]]
+name = "heliocentric_smoke"
+path = "examples/heliocentric_smoke.rs"

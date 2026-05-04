@@ -15,23 +15,25 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 path = "../src/lib.rs"
-required-features = ["dim3"]
+required-features = ["dim3", "f32"]
 
 [lints]
 rust.unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(feature, values("dim2"))',
+    'cfg(feature, values("dim2", "f32", "f64"))',
 ] }
 clippy = { needless_lifetimes = "allow" }
 
 [features]
 default = [
     "dim3",
+    "f32",
     "async-collider",
     "debug-render-3d",
     "picking-backend",
     "to-bevy-mesh",
 ]
 dim3 = []
+f32 = []
 debug-render = ["debug-render-3d"]
 debug-render-2d = [
     "bevy/bevy_core_pipeline",

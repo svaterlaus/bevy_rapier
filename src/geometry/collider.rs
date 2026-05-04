@@ -13,7 +13,7 @@ use rapier::geometry::Shape;
 use rapier::prelude::{ColliderHandle, InteractionGroups, InteractionTestMode, SharedShape};
 
 use crate::dynamics::{CoefficientCombineRule, MassProperties};
-use crate::math::Vect;
+use crate::math::{Real, Vect};
 
 #[cfg(doc)]
 use rapier::{dynamics::RigidBody, geometry::ContactForceEvent};
@@ -564,9 +564,9 @@ pub struct ColliderDisabled;
 /// We restrict the scaling increment to 1.0e-4, to avoid numerical jitter
 /// due to the extraction of scaling factor from the GlobalTransform matrix.
 pub fn get_snapped_scale(scale: Vect) -> Vect {
-    fn snap_value(new: f32) -> f32 {
-        const PRECISION: f32 = 1.0e4;
-        (new * PRECISION).round() / PRECISION
+    fn snap_value(new: Real) -> Real {
+        let precision: Real = 1.0e4;
+        (new * precision).round() / precision
     }
 
     Vect {

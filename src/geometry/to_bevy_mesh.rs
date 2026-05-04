@@ -16,6 +16,10 @@ use bevy::{
     prelude::{Mesh, MeshBuilder},
 };
 
+use crate::utils::as_precise::AsSingle;
+#[cfg(feature = "dim3")]
+use rapier::prelude::{Capsule, HalfSpace, TypedShape};
+#[cfg(feature = "dim2")]
 use rapier::prelude::{Capsule, TypedShape};
 /// Converts a [`TypedShape`] to a [`Mesh`].
 ///
@@ -28,12 +32,15 @@ pub fn typed_shape_to_mesh(typed_shape: &TypedShape) -> Option<Mesh> {
             // FIXME: bevy 0.16 will expose a builder for cuboids: https://github.com/bevyengine/bevy/pull/17454
             let half_extents = cuboid.half_extents;
             #[cfg(feature = "dim2")]
-            let mesh = bevy::prelude::Rectangle::new(half_extents.x * 2.0, half_extents.y * 2.0);
+            let mesh = bevy::prelude::Rectangle::new(
+                AsSingle::as_single(half_extents.x) * 2.0,
+                AsSingle::as_single(half_extents.y) * 2.0,
+            );
             #[cfg(feature = "dim3")]
             let mesh = bevy::prelude::Cuboid::new(
-                half_extents.x * 2.0,
-                half_extents.y * 2.0,
-                half_extents.z * 2.0,
+                AsSingle::as_single(half_extents.x) * 2.0,
+                AsSingle::as_single(half_extents.y) * 2.0,
+                AsSingle::as_single(half_extents.z) * 2.0,
             );
             Mesh::from(mesh)
         }
@@ -50,12 +57,28 @@ pub fn typed_shape_to_mesh(typed_shape: &TypedShape) -> Option<Mesh> {
             let c = triangle.c.coords;
             #[cfg(feature = "dim2")]
             let mesh = bevy::prelude::Triangle3d::new(
-                bevy::prelude::Vec3::new(a.x, a.y, 0.0),
-                bevy::prelude::Vec3::new(b.x, b.y, 0.0),
-                bevy::prelude::Vec3::new(c.x, c.y, 0.0),
+                bevy::prelude::Vec3::new(AsSingle::as_single(a.x), AsSingle::as_single(a.y), 0.0),
+                bevy::prelude::Vec3::new(AsSingle::as_single(b.x), AsSingle::as_single(b.y), 0.0),
+                bevy::prelude::Vec3::new(AsSingle::as_single(c.x), AsSingle::as_single(c.y), 0.0),
             );
             #[cfg(feature = "dim3")]
-            let mesh = bevy::prelude::Triangle3d::new(a.into(), b.into(), c.into());
+            let mesh = bevy::prelude::Triangle3d::new(
+                bevy::prelude::Vec3::new(
+                    AsSingle::as_single(a.x),
+                    AsSingle::as_single(a.y),
+                    AsSingle::as_single(a.z),
+                ),
+                bevy::prelude::Vec3::new(
+                    AsSingle::as_single(b.x),
+                    AsSingle::as_single(b.y),
+                    AsSingle::as_single(b.z),
+                ),
+                bevy::prelude::Vec3::new(
+                    AsSingle::as_single(c.x),
+                    AsSingle::as_single(c.y),
+                    AsSingle::as_single(c.z),
+                ),
+            );
 
             mesh.into()
         }
@@ -73,7 +96,13 @@ pub fn typed_shape_to_mesh(typed_shape: &TypedShape) -> Option<Mesh> {
                     mesh.with_inserted_attribute(
                         Mesh::ATTRIBUTE_POSITION,
                         vtx.iter()
-                            .map(|pos| [pos.x, pos.y, pos.z])
+                            .map(|pos| {
+                                [
+                                    AsSingle::as_single(pos.x),
+                                    AsSingle::as_single(pos.y),
+                                    AsSingle::as_single(pos.z),
+                                ]
+                            })
                             .collect::<Vec<_>>(),
                     ),
                 );
@@ -89,9 +118,27 @@ pub fn typed_shape_to_mesh(typed_shape: &TypedShape) -> Option<Mesh> {
         TypedShape::TriMesh(tri_mesh) => {
             let vertices = tri_mesh.vertices();
             #[cfg(feature = "dim2")]
-            let vertices: Vec<_> = vertices.iter().map(|pos| [pos.x, pos.y, 0.0]).collect();
+            let vertices: Vec<_> = vertices
+                .iter()
+                .map(|pos| {
+                    [
+                        AsSingle::as_single(pos.x),
+                        AsSingle::as_single(pos.y),
+                        0.0f32,
+                    ]
+                })
+                .collect();
             #[cfg(feature = "dim3")]
-            let vertices: Vec<_> = vertices.iter().map(|pos| [pos.x, pos.y, pos.z]).collect();
+            let vertices: Vec<_> = vertices
+                .iter()
+                .map(|pos| {
+                    [
+                        AsSingle::as_single(pos.x),
+                        AsSingle::as_single(pos.y),
+                        AsSingle::as_single(pos.z),
+                    ]
+                })
+                .collect();
             let indices = tri_mesh.indices();
             let mesh = Mesh::new(
                 bevy::mesh::PrimitiveTopology::TriangleList,
@@ -133,7 +180,13 @@ pub fn typed_shape_to_mesh(typed_shape: &TypedShape) -> Option<Mesh> {
                 mesh.with_inserted_attribute(
                     Mesh::ATTRIBUTE_POSITION,
                     vtx.iter()
-                        .map(|pos| [pos.x, pos.y, pos.z])
+                        .map(|pos| {
+                            [
+                                AsSingle::as_single(pos.x),
+                                AsSingle::as_single(pos.y),
+                                AsSingle::as_single(pos.z),
+                            ]
+                        })
                         .collect::<Vec<_>>(),
                 )
             }
@@ -158,7 +211,16 @@ pub fn typed_shape_to_mesh(typed_shape: &TypedShape) -> Option<Mesh> {
         #[cfg(feature = "dim2")]
         TypedShape::ConvexPolygon(convex_polygon) => {
             let vertices = convex_polygon.points();
-            let vertices: Vec<_> = vertices.iter().map(|pos| [pos.x, pos.y, 0.0]).collect();
+            let vertices: Vec<_> = vertices
+                .iter()
+                .map(|pos| {
+                    [
+                        AsSingle::as_single(pos.x),
+                        AsSingle::as_single(pos.y),
+                        0.0f32,
+                    ]
+                })
+                .collect();
 
             let indices = (1..vertices.len() as u32 - 1)
                 .flat_map(|i| vec![0, i, i + 1])
@@ -173,7 +235,16 @@ pub fn typed_shape_to_mesh(typed_shape: &TypedShape) -> Option<Mesh> {
         #[cfg(feature = "dim3")]
         TypedShape::ConvexPolyhedron(convex_polyhedron) => {
             let vertices = convex_polyhedron.points();
-            let vertices: Vec<_> = vertices.iter().map(|pos| [pos.x, pos.y, pos.z]).collect();
+            let vertices: Vec<_> = vertices
+                .iter()
+                .map(|pos| {
+                    [
+                        AsSingle::as_single(pos.x),
+                        AsSingle::as_single(pos.y),
+                        AsSingle::as_single(pos.z),
+                    ]
+                })
+                .collect();
 
             let indices = (1..vertices.len() as u32 - 1)
                 .flat_map(|i| vec![0, i, i + 1])
@@ -253,7 +324,7 @@ impl ToMeshBuilder for &Ball {
     type MeshBuilder = CircleMeshBuilder;
 
     fn mesh_builder(&self) -> Self::MeshBuilder {
-        CircleMeshBuilder::new(self.radius, 16)
+        CircleMeshBuilder::new(AsSingle::as_single(self.radius), 16)
     }
 }
 
@@ -262,17 +333,26 @@ impl ToMeshBuilder for &Ball {
     type MeshBuilder = SphereMeshBuilder;
 
     fn mesh_builder(&self) -> Self::MeshBuilder {
-        SphereMeshBuilder::new(self.radius, bevy::mesh::SphereKind::Ico { subdivisions: 1 })
+        SphereMeshBuilder::new(
+            AsSingle::as_single(self.radius),
+            bevy::mesh::SphereKind::Ico { subdivisions: 1 },
+        )
     }
 }
 
 #[cfg(feature = "dim3")]
-impl ToMeshBuilder for &rapier3d::prelude::HalfSpace {
+impl ToMeshBuilder for &HalfSpace {
     type MeshBuilder = PlaneMeshBuilder;
 
     fn mesh_builder(&self) -> Self::MeshBuilder {
+        let n = self.normal.into_inner();
         PlaneMeshBuilder::new(
-            bevy::prelude::Dir3::new(self.normal.into()).unwrap_or(bevy::prelude::Dir3::Y),
+            bevy::prelude::Dir3::new(bevy::prelude::Vec3::new(
+                AsSingle::as_single(n.x),
+                AsSingle::as_single(n.y),
+                AsSingle::as_single(n.z),
+            ))
+            .unwrap_or(bevy::prelude::Dir3::Y),
             bevy::prelude::Vec2::ONE,
         )
     }
@@ -283,7 +363,11 @@ impl ToMeshBuilder for &Capsule {
     type MeshBuilder = Capsule2dMeshBuilder;
 
     fn mesh_builder(&self) -> Self::MeshBuilder {
-        bevy::mesh::Capsule2dMeshBuilder::new(self.radius, self.height(), 10)
+        bevy::mesh::Capsule2dMeshBuilder::new(
+            AsSingle::as_single(self.radius),
+            AsSingle::as_single(self.height()),
+            10,
+        )
     }
 }
 
@@ -292,7 +376,12 @@ impl ToMeshBuilder for &Capsule {
     type MeshBuilder = Capsule3dMeshBuilder;
 
     fn mesh_builder(&self) -> Self::MeshBuilder {
-        bevy::mesh::Capsule3dMeshBuilder::new(self.radius, self.height(), 10, 10)
+        bevy::mesh::Capsule3dMeshBuilder::new(
+            AsSingle::as_single(self.radius),
+            AsSingle::as_single(self.height()),
+            10,
+            10,
+        )
     }
 }
 #[cfg(feature = "dim3")]
@@ -300,7 +389,11 @@ impl ToMeshBuilder for &Cone {
     type MeshBuilder = ConeMeshBuilder;
 
     fn mesh_builder(&self) -> Self::MeshBuilder {
-        bevy::mesh::ConeMeshBuilder::new(self.radius, self.half_height * 2.0, 16)
+        bevy::mesh::ConeMeshBuilder::new(
+            AsSingle::as_single(self.radius),
+            AsSingle::as_single(self.half_height * 2.0),
+            16,
+        )
     }
 }
 
@@ -309,6 +402,10 @@ impl ToMeshBuilder for &Cylinder {
     type MeshBuilder = CylinderMeshBuilder;
 
     fn mesh_builder(&self) -> Self::MeshBuilder {
-        bevy::mesh::CylinderMeshBuilder::new(self.radius, self.half_height * 2.0, 16)
+        bevy::mesh::CylinderMeshBuilder::new(
+            AsSingle::as_single(self.radius),
+            AsSingle::as_single(self.half_height * 2.0),
+            16,
+        )
     }
 }

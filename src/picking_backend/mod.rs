@@ -6,6 +6,9 @@
 //! To make rapier picking entirely opt-in, set [`RapierPickingSettings::require_markers`]
 //! to `true` and add a [`RapierPickable`] component to the desired camera and target entities.
 
+use crate::math::AsPrecise;
+#[cfg(feature = "dim3")]
+use crate::math::{AsSingle, Real};
 use bevy::app::prelude::*;
 use bevy::camera::visibility::{InheritedVisibility, RenderLayers};
 use bevy::ecs::prelude::*;
@@ -140,9 +143,9 @@ pub fn update_hits(
                 &DefaultQueryDispatcher,
                 |query_pipeline| {
                     #[cfg(feature = "dim2")]
-                    for entity in query_pipeline
-                        .intersect_point(bevy::math::Vec2::new(ray.origin.x, ray.origin.y))
-                    {
+                    for entity in query_pipeline.intersect_point(AsPrecise::as_precise(
+                        bevy::math::Vec2::new(ray.origin.x, ray.origin.y),
+                    )) {
                         let hit_data = HitData {
                             camera: ray_id.camera,
                             position: Some(bevy::math::Vec3::new(ray.origin.x, ray.origin.y, 0.0)),
@@ -153,16 +156,24 @@ pub fn update_hits(
                     }
                     #[cfg(feature = "dim3")]
                     for (entity, intersection) in query_pipeline.intersect_ray(
-                        ray.origin,
-                        ray.direction.into(),
-                        f32::MAX,
+                        AsPrecise::as_precise(ray.origin),
+                        AsPrecise::as_precise(Into::<Vec3>::into(ray.direction)),
+                        Real::MAX,
                         true,
                     ) {
                         let hit_data = HitData {
                             camera: ray_id.camera,
-                            position: Some(intersection.point),
-                            normal: Some(intersection.normal),
-                            depth: intersection.time_of_impact,
+                            position: Some(Vec3::new(
+                                intersection.point.x.as_single(),
+                                intersection.point.y.as_single(),
+                                intersection.point.z.as_single(),
+                            )),
+                            normal: Some(Vec3::new(
+                                intersection.normal.x.as_single(),
+                                intersection.normal.y.as_single(),
+                                intersection.normal.z.as_single(),
+                            )),
+                            depth: intersection.time_of_impact.as_single(),
                         };
                         picks.push((entity, hit_data));
                     }

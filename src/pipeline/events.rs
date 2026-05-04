@@ -283,9 +283,9 @@ mod test {
             /*
              * Ground
              */
-            let ground_size = 5.1;
-            let ground_height = 0.1;
-            let starting_y = -0.5 - ground_height;
+            let ground_size: Real = 5.1;
+            let ground_height: Real = 0.1;
+            let starting_y = ((-0.5) - ground_height) as f32;
 
             commands.spawn((
                 Transform::from_xyz(0.0, starting_y, 0.0),

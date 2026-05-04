@@ -7,10 +7,10 @@ use crate::plugin::{
     RapierConfiguration,
 };
 use crate::prelude::{
-    ActiveCollisionTypes, ActiveEvents, ActiveHooks, ColliderDisabled, ColliderMassProperties,
-    ColliderScale, CollidingEntities, CollisionEvent, CollisionGroups, ContactForceEventThreshold,
-    ContactSkin, Friction, MassModifiedEvent, MassProperties, RapierColliderHandle,
-    RapierRigidBodyHandle, Restitution, Sensor, SolverGroups,
+    ActiveCollisionTypes, ActiveEvents, ActiveHooks, AsPrecise, ColliderDisabled,
+    ColliderMassProperties, ColliderScale, CollidingEntities, CollisionEvent, CollisionGroups,
+    ContactForceEventThreshold, ContactSkin, Friction, MassModifiedEvent, MassProperties,
+    RapierColliderHandle, RapierRigidBodyHandle, Real, Restitution, Sensor, SolverGroups,
 };
 use crate::utils;
 use bevy::prelude::*;
@@ -64,18 +64,22 @@ pub fn apply_scale(
     for (mut shape, link, transform, custom_scale) in changed_collider_scales.iter_mut() {
         let config = config.get(link.0).unwrap();
         #[cfg(feature = "dim2")]
-        let effective_scale = match custom_scale {
-            Some(ColliderScale::Absolute(scale)) => *scale,
-            Some(ColliderScale::Relative(scale)) => {
-                *scale * transform.compute_transform().scale.xy()
+        let effective_scale = {
+            let world_scale_xy = AsPrecise::as_precise(transform.compute_transform().scale.xy());
+            match custom_scale {
+                Some(ColliderScale::Absolute(scale)) => *scale,
+                Some(ColliderScale::Relative(scale)) => *scale * world_scale_xy,
+                None => world_scale_xy,
             }
-            None => transform.compute_transform().scale.xy(),
         };
         #[cfg(feature = "dim3")]
-        let effective_scale = match custom_scale {
-            Some(ColliderScale::Absolute(scale)) => *scale,
-            Some(ColliderScale::Relative(scale)) => *scale * transform.compute_transform().scale,
-            None => transform.compute_transform().scale,
+        let effective_scale = {
+            let world_scale = AsPrecise::as_precise(transform.compute_transform().scale);
+            match custom_scale {
+                Some(ColliderScale::Absolute(scale)) => *scale,
+                Some(ColliderScale::Relative(scale)) => *scale * world_scale,
+                None => world_scale,
+            }
         };
 
         if shape.scale != crate::geometry::get_snapped_scale(effective_scale) {
@@ -228,7 +232,7 @@ pub fn apply_collider_user_changes(
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
         if let Some(co) = context_colliders.colliders.get_mut(handle.0) {
-            co.set_friction(friction.coefficient);
+            co.set_friction(Real::from(friction.coefficient));
             co.set_friction_combine_rule(friction.combine_rule.into());
         }
     }
@@ -238,7 +242,7 @@ pub fn apply_collider_user_changes(
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
         if let Some(co) = context_colliders.colliders.get_mut(handle.0) {
-            co.set_restitution(restitution.coefficient);
+            co.set_restitution(Real::from(restitution.coefficient));
             co.set_restitution_combine_rule(restitution.combine_rule.into());
         }
     }
@@ -248,7 +252,7 @@ pub fn apply_collider_user_changes(
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
         if let Some(co) = context_colliders.colliders.get_mut(handle.0) {
-            co.set_contact_skin(contact_skin.0);
+            co.set_contact_skin(Real::from(contact_skin.0));
         }
     }
 
@@ -293,7 +297,7 @@ pub fn apply_collider_user_changes(
             .get_mut(rapier_entity.rapier_context_link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
         if let Some(co) = context_colliders.colliders.get_mut(handle.0) {
-            co.set_contact_force_event_threshold(threshold.0);
+            co.set_contact_force_event_threshold(Real::from(threshold.0));
         }
     }
 
@@ -303,8 +307,8 @@ pub fn apply_collider_user_changes(
             .expect(RAPIER_CONTEXT_EXPECT_ERROR);
         if let Some(co) = context_colliders.colliders.get_mut(handle.0) {
             match mprops {
-                ColliderMassProperties::Density(density) => co.set_density(*density),
-                ColliderMassProperties::Mass(mass) => co.set_mass(*mass),
+                ColliderMassProperties::Density(density) => co.set_density(Real::from(*density)),
+                ColliderMassProperties::Mass(mass) => co.set_mass(Real::from(*mass)),
                 ColliderMassProperties::MassProperties(mprops) => {
                     co.set_mass_properties(mprops.into_rapier())
                 }
@@ -421,8 +425,8 @@ pub fn init_colliders(
 
         if let Some(mprops) = mprops {
             builder = match mprops {
-                ColliderMassProperties::Density(density) => builder.density(*density),
-                ColliderMassProperties::Mass(mass) => builder.mass(*mass),
+                ColliderMassProperties::Density(density) => builder.density(Real::from(*density)),
+                ColliderMassProperties::Mass(mass) => builder.mass(Real::from(*mass)),
                 ColliderMassProperties::MassProperties(mprops) => {
                     builder.mass_properties(mprops.into_rapier())
                 }
@@ -443,18 +447,18 @@ pub fn init_colliders(
 
         if let Some(friction) = friction {
             builder = builder
-                .friction(friction.coefficient)
+                .friction(Real::from(friction.coefficient))
                 .friction_combine_rule(friction.combine_rule.into());
         }
 
         if let Some(restitution) = restitution {
             builder = builder
-                .restitution(restitution.coefficient)
+                .restitution(Real::from(restitution.coefficient))
                 .restitution_combine_rule(restitution.combine_rule.into());
         }
 
         if let Some(contact_skin) = contact_skin {
-            builder = builder.contact_skin(contact_skin.0);
+            builder = builder.contact_skin(Real::from(contact_skin.0));
         }
 
         if let Some(collision_groups) = collision_groups {
@@ -466,7 +470,7 @@ pub fn init_colliders(
         }
 
         if let Some(threshold) = contact_force_event_threshold {
-            builder = builder.contact_force_event_threshold(threshold.0);
+            builder = builder.contact_force_event_threshold(Real::from(threshold.0));
         }
         let body_entity = entity;
         let (body_handle, child_transform) =

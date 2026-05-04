@@ -10,6 +10,7 @@ use crate::prelude::context::RapierRigidBodySet;
 use crate::prelude::KinematicCharacterController;
 use crate::prelude::KinematicCharacterControllerOutput;
 use crate::utils;
+use crate::utils::as_precise::AsSingle;
 use bevy::prelude::*;
 use rapier::math::Isometry;
 use rapier::math::Real;
@@ -158,11 +159,11 @@ pub fn update_character_controls(
 
             if let Ok(mut transform) = transforms.get_mut(entity_to_move) {
                 // TODO: take the parent’s GlobalTransform rotation into account?
-                transform.translation.x += movement.translation.x;
-                transform.translation.y += movement.translation.y;
+                transform.translation.x += movement.translation.x.as_single();
+                transform.translation.y += movement.translation.y.as_single();
                 #[cfg(feature = "dim3")]
                 {
-                    transform.translation.z += movement.translation.z;
+                    transform.translation.z += movement.translation.z.as_single();
                 }
             }
 

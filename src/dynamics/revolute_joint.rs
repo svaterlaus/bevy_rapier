@@ -170,7 +170,7 @@ impl RevoluteJoint {
         bodies: &RigidBodySet,
         body1: RigidBodyHandle,
         body2: RigidBodyHandle,
-    ) -> f32 {
+    ) -> crate::math::Real {
         // NOTE: unwrap will always succeed since `Self` is known to be a revolute joint.
         let joint = self.data.raw.as_revolute().unwrap();
 
@@ -185,7 +185,12 @@ impl RevoluteJoint {
     /// - `bodies` : the rigid body set from [`RapierRigidBodySet`]
     /// - `body1`: the first rigid-body attached to this revolute joint.
     /// - `body2`: the second rigid-body attached to this revolute joint.
-    pub fn angle(&self, rigidbody_set: &RapierRigidBodySet, body1: Entity, body2: Entity) -> f32 {
+    pub fn angle(
+        &self,
+        rigidbody_set: &RapierRigidBodySet,
+        body1: Entity,
+        body2: Entity,
+    ) -> crate::math::Real {
         let rb1 = rigidbody_set.entity2body().get(&body1).unwrap();
         let rb2 = rigidbody_set.entity2body().get(&body2).unwrap();
         self.angle_from_handles(&rigidbody_set.bodies, *rb1, *rb2)

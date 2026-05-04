@@ -394,6 +394,7 @@ impl RapierContextInitialization {
     ///
     /// The default gravity is automatically scaled by that length unit.
     pub fn default_with_length_unit(length_unit: f32) -> Self {
+        let length_unit = crate::math::Real::from(length_unit);
         let integration_parameters = IntegrationParameters {
             length_unit,
             ..default()
@@ -701,7 +702,7 @@ mod test {
             let mut config = config.single_mut().unwrap();
             *config = RapierConfiguration {
                 force_update_from_transform_changes: true,
-                ..RapierConfiguration::new(1f32)
+                ..RapierConfiguration::new(1.0)
             };
         }
 
@@ -710,7 +711,7 @@ mod test {
                 .spawn(Transform::from_scale(Vec3::splat(5f32)))
                 .id();
             let mut entity_commands = commands.spawn((
-                Collider::ball(1f32),
+                Collider::ball(1.0),
                 Transform::from_translation(Vec3::new(200f32, 100f32, 3f32)),
                 RigidBody::Fixed,
             ));

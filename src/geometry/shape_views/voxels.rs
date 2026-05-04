@@ -1,6 +1,7 @@
 use rapier::prelude::{Aabb, VoxelData, VoxelState, Voxels};
 
 use crate::math::{IVect, Vect};
+use crate::utils::as_precise::{AsPrecise, AsSingle};
 
 #[cfg(feature = "dim2")]
 use bevy::math::bounding::Aabb2d as BevyAabb;
@@ -8,13 +9,40 @@ use bevy::math::bounding::Aabb2d as BevyAabb;
 use bevy::math::bounding::Aabb3d as BevyAabb;
 
 fn aabb_na_from_bevy(aabb: &BevyAabb) -> Aabb {
-    rapier::parry::bounding_volume::Aabb::new(aabb.min.into(), aabb.max.into())
+    rapier::parry::bounding_volume::Aabb::new(
+        AsPrecise::as_precise(aabb.min).into(),
+        AsPrecise::as_precise(aabb.max).into(),
+    )
 }
 
 fn aabb_bevy_from_na(aabb: &Aabb) -> BevyAabb {
-    BevyAabb {
-        min: aabb.mins.into(),
-        max: aabb.maxs.into(),
+    #[cfg(feature = "dim2")]
+    {
+        let mins = aabb.mins.coords;
+        let maxs = aabb.maxs.coords;
+        BevyAabb {
+            min: bevy::prelude::Vec2::new(mins.x.as_single(), mins.y.as_single()),
+            max: bevy::prelude::Vec2::new(maxs.x.as_single(), maxs.y.as_single()),
+        }
+    }
+    #[cfg(feature = "dim3")]
+    {
+        let mins = aabb.mins.coords;
+        let maxs = aabb.maxs.coords;
+        BevyAabb {
+            min: bevy::prelude::Vec3::new(
+                mins.x.as_single(),
+                mins.y.as_single(),
+                mins.z.as_single(),
+            )
+            .into(),
+            max: bevy::prelude::Vec3::new(
+                maxs.x.as_single(),
+                maxs.y.as_single(),
+                maxs.z.as_single(),
+            )
+            .into(),
+        }
     }
 }
 

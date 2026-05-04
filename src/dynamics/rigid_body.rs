@@ -1,4 +1,4 @@
-use crate::math::Vect;
+use crate::math::{Real, Vect};
 use bevy::prelude::*;
 use rapier::prelude::{
     Isometry, LockedAxes as RapierLockedAxes, RigidBodyActivation, RigidBodyHandle, RigidBodyType,
@@ -90,7 +90,7 @@ pub struct Velocity {
     pub linvel: Vect,
     /// The angular velocity of the [`RigidBody`] in radian per second.
     #[cfg(feature = "dim2")]
-    pub angvel: f32,
+    pub angvel: Real,
     /// The angular velocity of the [`RigidBody`].
     #[cfg(feature = "dim3")]
     pub angvel: Vect,
@@ -121,7 +121,7 @@ impl Velocity {
 
     /// Initialize a velocity with the given angular velocity, and a linear velocity of zero.
     #[cfg(feature = "dim2")]
-    pub const fn angular(angvel: f32) -> Self {
+    pub const fn angular(angvel: Real) -> Self {
         Self {
             linvel: Vect::ZERO,
             angvel,
@@ -160,7 +160,7 @@ pub enum AdditionalMassProperties {
     /// This mass will be added to the [`RigidBody`]. The rigid-body’s total
     /// angular inertia tensor (obtained from its attached colliders) will
     /// be scaled accordingly.
-    Mass(f32),
+    Mass(Real),
     /// These mass properties will be added to the [`RigidBody`].
     MassProperties(MassProperties),
 }
@@ -227,10 +227,10 @@ pub struct MassProperties {
     /// The center of mass of a [`RigidBody`] expressed in its local-space.
     pub local_center_of_mass: Vect,
     /// The mass of a [`RigidBody`].
-    pub mass: f32,
+    pub mass: Real,
     /// The principal angular inertia of the [`RigidBody`].
     #[cfg(feature = "dim2")]
-    pub principal_inertia: f32,
+    pub principal_inertia: Real,
     /// The principal vectors of the local angular inertia tensor of the [`RigidBody`].
     #[cfg(feature = "dim3")]
     pub principal_inertia_local_frame: crate::math::Rot,
@@ -246,8 +246,7 @@ impl MassProperties {
         rapier::dynamics::MassProperties::new(
             self.local_center_of_mass.into(),
             self.mass,
-            #[allow(clippy::useless_conversion)] // Need to convert if dim3 enabled
-            self.principal_inertia.into(),
+            self.principal_inertia,
         )
     }
 
@@ -264,13 +263,22 @@ impl MassProperties {
 
     /// Converts Rapier’s `MassProperties` structure to `Self`.
     pub fn from_rapier(mprops: rapier::dynamics::MassProperties) -> Self {
-        #[allow(clippy::useless_conversion)] // Need to convert if dim3 enabled
-        Self {
-            mass: mprops.mass(),
-            local_center_of_mass: mprops.local_com.into(),
-            principal_inertia: mprops.principal_inertia().into(),
-            #[cfg(feature = "dim3")]
-            principal_inertia_local_frame: mprops.principal_inertia_local_frame.into(),
+        #[cfg(feature = "dim2")]
+        {
+            Self {
+                mass: mprops.mass(),
+                local_center_of_mass: mprops.local_com.into(),
+                principal_inertia: mprops.principal_inertia(),
+            }
+        }
+        #[cfg(feature = "dim3")]
+        {
+            Self {
+                mass: mprops.mass(),
+                local_center_of_mass: mprops.local_com.into(),
+                principal_inertia: mprops.principal_inertia().into(),
+                principal_inertia_local_frame: mprops.principal_inertia_local_frame.into(),
+            }
         }
     }
 }
@@ -317,7 +325,7 @@ pub struct ExternalForce {
     pub force: Vect,
     /// The angular torque applied to the [`RigidBody`].
     #[cfg(feature = "dim2")]
-    pub torque: f32,
+    pub torque: Real,
     /// The angular torque applied to the [`RigidBody`].
     #[cfg(feature = "dim3")]
     pub torque: Vect,
@@ -389,7 +397,7 @@ pub struct ExternalImpulse {
     pub impulse: Vect,
     /// The angular impulse applied to the [`RigidBody`].
     #[cfg(feature = "dim2")]
-    pub torque_impulse: f32,
+    pub torque_impulse: Real,
     /// The angular impulse applied to the [`RigidBody`].
     #[cfg(feature = "dim3")]
     pub torque_impulse: Vect,
@@ -459,7 +467,7 @@ impl SubAssign for ExternalImpulse {
 /// applied to this [`RigidBody`].
 #[derive(Copy, Clone, Debug, PartialEq, Component, Reflect)]
 #[reflect(Component, Default, PartialEq)]
-pub struct GravityScale(pub f32);
+pub struct GravityScale(pub Real);
 
 impl Default for GravityScale {
     fn default() -> Self {
@@ -504,7 +512,7 @@ impl Ccd {
 #[reflect(Component, Default, PartialEq)]
 pub struct SoftCcd {
     /// The soft CCD prediction distance.
-    pub prediction: f32,
+    pub prediction: Real,
 }
 
 /// The dominance groups of a [`RigidBody`].
@@ -534,9 +542,9 @@ pub struct Sleeping {
     ///
     /// The effictive threshold is obtained by multpilying this value by the
     /// [`IntegrationParameters::length_unit`].
-    pub normalized_linear_threshold: f32,
+    pub normalized_linear_threshold: Real,
     /// The angular velocity below which the body can fall asleep.
-    pub angular_threshold: f32,
+    pub angular_threshold: Real,
     /// Is this body sleeping?
     pub sleeping: bool,
 }
@@ -568,9 +576,9 @@ impl Default for Sleeping {
 pub struct Damping {
     // TODO: rename these to "linear" and "angular"?
     /// Damping factor for gradually slowing down the translational motion of the [`RigidBody`].
-    pub linear_damping: f32,
+    pub linear_damping: Real,
     /// Damping factor for gradually slowing down the angular motion of the [`RigidBody`].
-    pub angular_damping: f32,
+    pub angular_damping: Real,
 }
 
 impl Default for Damping {
@@ -588,14 +596,14 @@ impl Default for Damping {
 #[derive(Copy, Clone, Debug, Default, PartialEq, Component)]
 pub struct TransformInterpolation {
     /// The starting point of the interpolation.
-    pub start: Option<Isometry<f32>>,
+    pub start: Option<Isometry<Real>>,
     /// The end point of the interpolation.
-    pub end: Option<Isometry<f32>>,
+    pub end: Option<Isometry<Real>>,
 }
 
 impl TransformInterpolation {
     /// Interpolates between the start and end positions with `t` in the range `[0..1]`.
-    pub fn lerp_slerp(&self, t: f32) -> Option<Isometry<f32>> {
+    pub fn lerp_slerp(&self, t: Real) -> Option<Isometry<Real>> {
         if let (Some(start), Some(end)) = (self.start, self.end) {
             Some(start.lerp_slerp(&end, t))
         } else {

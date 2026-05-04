@@ -430,7 +430,7 @@ mod query_pipeline {
         pub fn project_point(
             &self,
             point: Vect,
-            max_dist: f32,
+            max_dist: Real,
             solid: bool,
             filter: QueryFilter,
         ) -> Option<(Entity, PointProjection)> {
@@ -565,7 +565,7 @@ mod query_pipeline {
         pub fn project_point(
             &self,
             point: Vect,
-            max_dist: f32,
+            max_dist: Real,
             solid: bool,
             filter: QueryFilter,
         ) -> Option<(Entity, PointProjection)> {
@@ -612,7 +612,7 @@ mod rigidbody_set {
         }
 
         /// Shortcut to [`RapierRigidBodySet::impulse_revolute_joint_angle`].
-        pub fn impulse_revolute_joint_angle(&self, entity: Entity) -> Option<f32> {
+        pub fn impulse_revolute_joint_angle(&self, entity: Entity) -> Option<crate::math::Real> {
             self.rigidbody_set
                 .impulse_revolute_joint_angle(self.joints, entity)
         }
@@ -636,7 +636,7 @@ mod rigidbody_set {
         }
 
         /// Shortcut to [`RapierRigidBodySet::impulse_revolute_joint_angle`].
-        pub fn impulse_revolute_joint_angle(&self, entity: Entity) -> Option<f32> {
+        pub fn impulse_revolute_joint_angle(&self, entity: Entity) -> Option<crate::math::Real> {
             self.rigidbody_set
                 .impulse_revolute_joint_angle(&self.joints, entity)
         }

@@ -1,3 +1,4 @@
+use crate::math::AsSingle;
 use crate::plugin::context::{
     RapierContextColliders, RapierContextJoints, RapierContextSimulation, RapierRigidBodySet,
 };
@@ -188,8 +189,8 @@ impl<'world, 'state, 'world2, 'state2, 'a, 'c, 'd, 'v, 'p> DebugRenderBackend
 
         let color = self.object_color(object, color);
         self.gizmos.line(
-            [a.x, a.y, 0.0].into(),
-            [b.x, b.y, 0.0].into(),
+            Vec3::new(a.x.as_single(), a.y.as_single(), 0.0),
+            Vec3::new(b.x.as_single(), b.y.as_single(), 0.0),
             Color::hsla(color[0], color[1], color[2], color[3]),
         )
     }
@@ -208,8 +209,8 @@ impl<'world, 'state, 'world2, 'state2, 'a, 'c, 'd, 'v, 'p> DebugRenderBackend
 
         let color = self.object_color(object, color);
         self.gizmos.line(
-            [a.x, a.y, a.z].into(),
-            [b.x, b.y, b.z].into(),
+            Vec3::new(a.x.as_single(), a.y.as_single(), a.z.as_single()),
+            Vec3::new(b.x.as_single(), b.y.as_single(), b.z.as_single()),
             Color::hsla(color[0], color[1], color[2], color[3]),
         )
     }
