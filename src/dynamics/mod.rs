@@ -1,5 +1,6 @@
 pub use self::generic_joint::*;
 pub use self::joint::*;
+pub use self::physics_transform::*;
 pub use self::rigid_body::*;
 
 pub use self::fixed_joint::*;
@@ -16,6 +17,7 @@ pub use self::spherical_joint::*;
 
 mod generic_joint;
 mod joint;
+mod physics_transform;
 mod rigid_body;
 
 mod fixed_joint;

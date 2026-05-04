@@ -58,6 +58,9 @@ pub fn sync_removals(
         let joints = &mut *joints;
 
         let _ = rigidbody_set.last_body_transform_set.remove(&handle);
+        let _ = rigidbody_set
+            .last_body_physics_transform_set
+            .remove(&handle);
         rigidbody_set.bodies.remove(
             handle,
             &mut context.islands,
@@ -75,6 +78,9 @@ pub fn sync_removals(
             let context = &mut *context;
             let joints = &mut *joints;
             let _ = rigidbody_set.last_body_transform_set.remove(&handle);
+            let _ = rigidbody_set
+                .last_body_physics_transform_set
+                .remove(&handle);
             rigidbody_set.bodies.remove(
                 handle,
                 &mut context.islands,

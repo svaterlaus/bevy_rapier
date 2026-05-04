@@ -1,11 +1,18 @@
-//! Spawns one dynamic body far from the origin and logs Rapier’s internal translation each frame.
+//! Spawns one dynamic body far from the origin and logs high-precision translations each frame.
 //!
-//! Intended as a coarse smoke signal that `bevy_rapier2d_f64` preserves sub-meter detail in the solver
-//! at heliocentric scales (Bevy `Transform` writes remain f32-quantized; see Phase C).
+//! Uses [`PhysicsTransform`] as canonical world pose (default [`PhysicsTransformRouting`] on f64 builds).
+//! With fixed timestep and zero gravity, verifies linear motion `Δp = v·Δt` in f64 instead of relying
+//! on quantized [`Transform`] / [`GlobalTransform`].
 
 use bevy::math::DVec2;
 use bevy::prelude::*;
+use bevy::time::TimeUpdateStrategy;
 use bevy_rapier2d_f64::prelude::*;
+use std::time::Duration;
+
+const DT_RAP: f64 = 1.0 / 60.0;
+const TICKS_BEFORE_DRIFT_CHECK: u32 = 120;
+const TICKS_BEFORE_SUBMETER_SAMPLES: u32 = 12;
 
 #[derive(Component)]
 struct HelioProbe;
@@ -17,8 +24,23 @@ fn main() {
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
         ))
-        .add_systems(Startup, (setup_graphics, setup_physics, zero_gravity))
-        .add_systems(Update, log_probe_translation)
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(
+            DT_RAP,
+        )))
+        .insert_resource(TimestepMode::Fixed {
+            dt: DT_RAP,
+            substeps: 1,
+        })
+        .add_systems(
+            Startup,
+            (
+                setup_graphics,
+                setup_physics,
+                zero_gravity,
+                assert_physics_transform_routing,
+            ),
+        )
+        .add_systems(Update, (tick_probe_logging, drift_check))
         .run();
 }
 
@@ -32,40 +54,87 @@ fn zero_gravity(mut q: Query<&mut RapierConfiguration, With<DefaultRapierContext
     }
 }
 
+fn assert_physics_transform_routing(cfgs: Query<&RapierConfiguration, With<DefaultRapierContext>>) {
+    let cfg = cfgs.single().expect("default rapier context");
+    assert!(
+        cfg.physics_transform_routing == PhysicsTransformRouting::PhysicsTransform,
+        "heliocentric_smoke assumes PhysicsTransformRouting::PhysicsTransform (f64 default)"
+    );
+}
+
 fn setup_physics(mut commands: Commands) {
+    let v = DVec2::new(1.23456789012345, -0.000987654321);
     commands.spawn((
         HelioProbe,
-        Transform::from_xyz(5_000_000.0_f32, 0.0, 0.0),
+        PhysicsTransform {
+            translation: DVec2::new(5_000_000.0, 0.0),
+            rotation: 0.0,
+        },
+        Transform::IDENTITY,
         RigidBody::Dynamic,
         Velocity {
-            linvel: DVec2::new(1.23456789012345, -0.000987654321),
+            linvel: v,
             angvel: 0.0,
         },
         Collider::ball(1.0),
     ));
 }
 
-fn log_probe_translation(
-    mut n: Local<u32>,
-    probe: Query<&RapierRigidBodyHandle, With<HelioProbe>>,
-    bodies: Query<&RapierRigidBodySet, With<DefaultRapierContext>>,
-) {
-    if *n >= 12 {
+#[derive(Default)]
+struct LogTicks(u32);
+
+fn tick_probe_logging(mut n: Local<LogTicks>, probe: Query<&PhysicsTransform, With<HelioProbe>>) {
+    if n.0 >= TICKS_BEFORE_SUBMETER_SAMPLES {
         return;
     }
-    let Ok(handle) = probe.single() else {
+    let Ok(pt) = probe.single() else {
         return;
     };
-    let Ok(rb_set) = bodies.single() else {
-        return;
-    };
-    let Some(rb) = rb_set.bodies.get(handle.0) else {
-        return;
-    };
-    let t = rb.translation();
     println!(
-        "[frame {}] rapier.translation = ({:.14}, {:.14})",
-        *n, t.x, t.y,
+        "[tick {}] physics_transform.translation = ({:.14}, {:.14}), frac_x = {:.14}",
+        n.0,
+        pt.translation.x,
+        pt.translation.y,
+        pt.translation.x.fract(),
     );
-    *n += 1;
+    n.0 += 1;
+}
+
+#[derive(Default)]
+struct DriftProbe {
+    ticks: u32,
+    checked: bool,
+}
+
+fn drift_check(
+    mut s: Local<DriftProbe>,
+    probe: Query<(&PhysicsTransform, &Velocity), With<HelioProbe>>,
+) {
+    if s.checked {
+        return;
+    }
+    s.ticks += 1;
+    if s.ticks < TICKS_BEFORE_DRIFT_CHECK {
+        return;
+    }
+    let Ok((pt, vel)) = probe.single() else {
+        return;
+    };
+
+    let elapsed = TICKS_BEFORE_DRIFT_CHECK as f64 * DT_RAP;
+    let p0 = DVec2::new(5_000_000.0, 0.0);
+    let expected = p0 + vel.linvel * elapsed;
+    let err = (expected - pt.translation).length();
+    assert!(
+        err < 1.0e-9,
+        "linear drift mismatch: expected {expected:?}, got {:?}, error {err:e}",
+        pt.translation,
+    );
+
+    println!(
+        "[smoke OK] physics_transform after {} ticks matches v·Δt (err = {:.3e})",
+        TICKS_BEFORE_DRIFT_CHECK, err,
+    );
+
+    s.checked = true;
 }

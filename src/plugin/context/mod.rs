@@ -33,6 +33,18 @@ use crate::prelude::{
     ImpulseJoint, MultibodyJoint, RevoluteJoint, TypedJoint,
 };
 
+#[inline]
+fn frame_delta_secs_as_real(time: &Time) -> crate::math::Real {
+    #[cfg(feature = "f64")]
+    {
+        time.delta_secs_f64()
+    }
+    #[cfg(feature = "f32")]
+    {
+        time.delta_secs()
+    }
+}
+
 /// Difference between simulation and rendering time
 #[derive(Component, Default, Reflect, Clone)]
 pub struct SimulationToRenderTime {
@@ -581,6 +593,11 @@ pub struct RapierRigidBodySet {
     /// For transform change detection.
     #[cfg_attr(feature = "serde-serialize", serde(skip))]
     pub(crate) last_body_transform_set: HashMap<RigidBodyHandle, GlobalTransform>,
+
+    /// Pose snapshot for [`PhysicsTransform`](crate::dynamics::PhysicsTransform) routing (self-write suppression).
+    #[cfg_attr(feature = "serde-serialize", serde(skip))]
+    pub(crate) last_body_physics_transform_set:
+        HashMap<RigidBodyHandle, crate::dynamics::PhysicsTransform>,
 }
 
 impl RapierRigidBodySet {
@@ -735,7 +752,7 @@ impl RapierContextSimulation {
             } => {
                 self.integration_parameters.dt = dt;
 
-                sim_to_render_time.diff += Real::from(time.delta_secs());
+                sim_to_render_time.diff += frame_delta_secs_as_real(time);
 
                 while sim_to_render_time.diff > 0.0 {
                     // NOTE: in this comparison we do the same computations we
@@ -784,7 +801,7 @@ impl RapierContextSimulation {
                 substeps,
             } => {
                 self.integration_parameters.dt =
-                    (Real::from(time.delta_secs()) * time_scale).min(max_dt);
+                    (frame_delta_secs_as_real(time) * time_scale).min(max_dt);
 
                 let mut substep_integration_parameters = self.integration_parameters;
                 substep_integration_parameters.dt /= substeps as Real;

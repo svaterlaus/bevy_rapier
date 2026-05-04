@@ -4,9 +4,12 @@ mod character_controller;
 mod collider;
 mod joint;
 mod multiple_rapier_contexts;
+mod physics_transform;
 mod remove;
 mod rigid_body;
 mod writeback;
+
+pub use physics_transform::*;
 
 pub use character_controller::*;
 pub use collider::*;

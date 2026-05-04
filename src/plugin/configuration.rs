@@ -8,7 +8,34 @@ use bevy::{
 use crate::math::{Real, Vect};
 
 #[cfg(doc)]
-use {crate::prelude::TransformInterpolation, rapier::dynamics::IntegrationParameters};
+use {
+    crate::dynamics::PhysicsTransform, crate::prelude::TransformInterpolation,
+    rapier::dynamics::IntegrationParameters,
+};
+
+/// Selects whether pose sync flows through [`GlobalTransform`] or [`crate::dynamics::PhysicsTransform`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Reflect)]
+#[reflect(PartialEq)]
+pub enum PhysicsTransformRouting {
+    /// Read and write rigid-body poses via Bevy transforms (default for `f32` Rapier).
+    GlobalTransform,
+    /// Read and write rigid-body poses via [`PhysicsTransform`]; [`Transform`] is not driven by physics.
+    PhysicsTransform,
+}
+
+#[allow(clippy::derivable_impls)] // Default differs between `f32` and `f64` crate builds.
+impl Default for PhysicsTransformRouting {
+    fn default() -> Self {
+        #[cfg(feature = "f64")]
+        {
+            Self::PhysicsTransform
+        }
+        #[cfg(feature = "f32")]
+        {
+            Self::GlobalTransform
+        }
+    }
+}
 
 /// The different ways of adjusting the timestep length each frame.
 #[derive(Copy, Clone, Debug, PartialEq, Resource)]
@@ -77,6 +104,8 @@ pub struct RapierConfiguration {
     pub scaled_shape_subdivision: u32,
     /// Specifies if backend sync should always accept transform changes, which may be from the writeback stage.
     pub force_update_from_transform_changes: bool,
+    /// Selects rigid-body pose read/write path for this physics context.
+    pub physics_transform_routing: PhysicsTransformRouting,
 }
 
 impl RapierConfiguration {
@@ -92,6 +121,7 @@ impl RapierConfiguration {
             physics_pipeline_active: true,
             scaled_shape_subdivision: 10,
             force_update_from_transform_changes: false,
+            physics_transform_routing: PhysicsTransformRouting::default(),
         }
     }
 }

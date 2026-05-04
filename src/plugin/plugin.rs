@@ -167,7 +167,11 @@ where
                     ),
                     // TODO: joints and colliders might be parallelizable.
                     systems::apply_initial_rigid_body_impulses.in_set(RapierBevyComponentApply),
-                    systems::apply_rigid_body_user_changes.in_set(RapierBevyComponentApply),
+                    (
+                        systems::apply_rigid_body_user_changes,
+                        systems::apply_physics_transform_user_changes,
+                    )
+                        .in_set(RapierBevyComponentApply),
                 )
                     .chain(),
             )
@@ -178,9 +182,14 @@ where
                 .into_configs(),
             PhysicsSet::Writeback => (
                 systems::update_colliding_entities,
-                systems::writeback_rigid_bodies,
+                (
+                    systems::writeback_rigid_bodies,
+                    systems::writeback_physics_transform,
+                ),
                 // Each writeback write to different properties.
                 systems::writeback_mass_properties.ambiguous_with(systems::writeback_rigid_bodies),
+                systems::writeback_mass_properties
+                    .ambiguous_with(systems::writeback_physics_transform),
             )
                 .in_set(PhysicsSet::Writeback)
                 .into_configs(),
@@ -263,7 +272,8 @@ where
             .register_type::<ContactSkin>()
             .register_type::<Group>()
             .register_type::<RapierContextEntityLink>()
-            .register_type::<RapierConfiguration>()
+            .register_type::<PhysicsTransform>()
+            .register_type::<PhysicsTransformRouting>()
             .register_type::<SimulationToRenderTime>()
             .register_type::<DefaultRapierContext>()
             .register_type::<RapierContextInitialization>()
