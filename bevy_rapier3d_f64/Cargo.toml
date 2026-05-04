@@ -52,8 +52,6 @@ debug-render-3d = [
 rapier-debug-render = ["rapier3d-f64/debug-render"]
 
 parallel = ["rapier3d-f64/parallel"]
-simd-stable = ["rapier3d-f64/simd-stable"]
-simd-nightly = ["rapier3d-f64/simd-nightly"]
 serde-serialize = ["rapier3d-f64/serde-serialize", "bevy/serialize", "serde"]
 enhanced-determinism = ["rapier3d-f64/enhanced-determinism"]
 headless = []
@@ -97,10 +95,6 @@ bevy_mod_debugdump = "0.15.0"
 features = ["debug-render-3d", "serde-serialize", "async-collider"]
 
 [package.metadata.cargo-all-features]
-
-denylist = ["simd-nightly"]
-
-skip_feature_sets = [["enhanced-determinism", "simd-stable"]]
 
 always_include_features = ["dim3"]
 

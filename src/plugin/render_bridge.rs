@@ -91,7 +91,7 @@ pub fn sync_physics_transform_to_transform(
         {
             let rel = (pt.translation - origin.0).as_vec3();
             t.translation = rel;
-            t.rotation = pt.rotation.as_f32();
+            t.rotation = pt.rotation.as_quat();
         }
     }
 }

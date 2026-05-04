@@ -51,8 +51,6 @@ debug-render-3d = [
 rapier-debug-render = ["rapier2d-f64/debug-render"]
 
 parallel = ["rapier2d-f64/parallel"]
-simd-stable = ["rapier2d-f64/simd-stable"]
-simd-nightly = ["rapier2d-f64/simd-nightly"]
 serde-serialize = ["rapier2d-f64/serde-serialize", "bevy/serialize", "serde"]
 enhanced-determinism = ["rapier2d-f64/enhanced-determinism"]
 headless = []
@@ -104,10 +102,6 @@ serde_json = "1.0"
 features = ["debug-render-2d", "serde-serialize"]
 
 [package.metadata.cargo-all-features]
-
-denylist = ["simd-nightly"]
-
-skip_feature_sets = [["enhanced-determinism", "simd-stable"]]
 
 always_include_features = ["dim2"]
 
