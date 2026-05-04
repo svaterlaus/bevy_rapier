@@ -7,6 +7,7 @@ pub use self::plugin::{
     NoUserData, PhysicsSet, RapierBevyComponentApply, RapierContextInitialization,
     RapierPhysicsPlugin, RapierTransformPropagateSet,
 };
+pub use self::render_bridge::{PhysicsTransformRenderBridgePlugin, RenderOrigin};
 pub use narrow_phase::{ContactManifoldView, ContactPairView, ContactView, SolverContactView};
 
 #[allow(clippy::type_complexity)]
@@ -18,3 +19,4 @@ pub mod context;
 mod narrow_phase;
 #[allow(clippy::module_inception)]
 mod plugin;
+pub mod render_bridge;
