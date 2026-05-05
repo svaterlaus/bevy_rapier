@@ -272,6 +272,7 @@ where
             .register_type::<ContactSkin>()
             .register_type::<Group>()
             .register_type::<RapierContextEntityLink>()
+            .register_type::<RapierConfiguration>()
             .register_type::<PhysicsTransform>()
             .register_type::<PhysicsTransformRouting>()
             .register_type::<SimulationToRenderTime>()

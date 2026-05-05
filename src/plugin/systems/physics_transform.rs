@@ -4,7 +4,7 @@ use crate::dynamics::{PhysicsTransform, RapierRigidBodyHandle, TransformInterpol
 use crate::plugin::configuration::{PhysicsTransformRouting, RapierConfiguration, TimestepMode};
 use crate::plugin::context::systemparams::RAPIER_CONTEXT_EXPECT_ERROR;
 use crate::plugin::context::{RapierContextEntityLink, RapierRigidBodySet, SimulationToRenderTime};
-use crate::prelude::{RigidBody, RigidBodyDisabled, Sleeping, Velocity};
+use crate::prelude::{RigidBody, RigidBodyDisabled};
 use bevy::prelude::*;
 use rapier::dynamics::{RigidBodyHandle, RigidBodyType};
 use std::collections::HashMap;
@@ -101,8 +101,6 @@ pub fn apply_physics_transform_user_changes(
 }
 
 /// Writes simulated rigid-body poses into [`PhysicsTransform`].
-///
-/// Mirrors [`crate::plugin::systems::writeback_rigid_bodies`]’s kinematic interpolation path for pose.
 pub fn writeback_physics_transform(
     mut rigid_body_sets: Query<&mut RapierRigidBodySet>,
     timestep_mode: Res<TimestepMode>,
@@ -114,15 +112,11 @@ pub fn writeback_physics_transform(
             &RapierContextEntityLink,
             &mut PhysicsTransform,
             Option<&mut TransformInterpolation>,
-            Option<&mut Velocity>,
-            Option<&mut Sleeping>,
         ),
         (With<RigidBody>, Without<RigidBodyDisabled>),
     >,
 ) {
-    for (handle, link, mut physics_transform, mut interpolation, mut velocity, mut sleeping) in
-        query.iter_mut()
-    {
+    for (handle, link, mut physics_transform, mut interpolation) in query.iter_mut() {
         let cfg = config
             .get(link.0)
             .expect("Could not get `RapierConfiguration`");
@@ -169,26 +163,6 @@ pub fn writeback_physics_transform(
             rigid_body_set
                 .last_body_physics_transform_set
                 .insert(handle, new_pt);
-
-            if let Some(velocity) = &mut velocity {
-                let new_vel = Velocity {
-                    linvel: (*rb.linvel()).into(),
-                    #[cfg(feature = "dim3")]
-                    angvel: (*rb.angvel()).into(),
-                    #[cfg(feature = "dim2")]
-                    angvel: rb.angvel(),
-                };
-
-                if **velocity != new_vel {
-                    **velocity = new_vel;
-                }
-            }
-
-            if let Some(sleeping) = &mut sleeping {
-                if sleeping.sleeping != rb.is_sleeping() {
-                    sleeping.sleeping = rb.is_sleeping();
-                }
-            }
         }
     }
 }

@@ -56,7 +56,9 @@ fn storage_from_real(r: Real) -> f64 {
 
 #[cfg(feature = "dim2")]
 impl PhysicsTransform {
-    pub(crate) fn to_isometry(self) -> Isometry<Real> {
+    /// Builds a Rapier [`Isometry<Real>`] from this pose, narrowing translation and rotation
+    /// from `f64` to [`Real`] when the active build is `f32`.
+    pub fn to_isometry(self) -> Isometry<Real> {
         Isometry::<Real>::new(
             crate::na::Vector2::new(
                 real_from_storage(self.translation.x),
@@ -66,7 +68,9 @@ impl PhysicsTransform {
         )
     }
 
-    pub(crate) fn from_isometry(iso: &Isometry<Real>) -> Self {
+    /// Builds a [`PhysicsTransform`] from a Rapier [`Isometry<Real>`], widening from [`Real`]
+    /// to `f64` when the active build is `f32`.
+    pub fn from_isometry(iso: &Isometry<Real>) -> Self {
         let v = iso.translation.vector;
         Self {
             translation: DVec2::new(storage_from_real(v.x), storage_from_real(v.y)),
@@ -77,7 +81,9 @@ impl PhysicsTransform {
 
 #[cfg(feature = "dim3")]
 impl PhysicsTransform {
-    pub(crate) fn to_isometry(self) -> Isometry<Real> {
+    /// Builds a Rapier [`Isometry<Real>`] from this pose, narrowing translation and rotation
+    /// from `f64` to [`Real`] when the active build is `f32`.
+    pub fn to_isometry(self) -> Isometry<Real> {
         use crate::na::{Isometry3, Quaternion as NaQuat, Translation3, UnitQuaternion, Vector3};
 
         Isometry3::from_parts(
@@ -97,7 +103,9 @@ impl PhysicsTransform {
         )
     }
 
-    pub(crate) fn from_isometry(iso: &Isometry<Real>) -> Self {
+    /// Builds a [`PhysicsTransform`] from a Rapier [`Isometry<Real>`], widening from [`Real`]
+    /// to `f64` when the active build is `f32`.
+    pub fn from_isometry(iso: &Isometry<Real>) -> Self {
         let t_vec = iso.translation.vector;
         let rq: crate::na::UnitQuaternion<Real> = iso.rotation;
         let q = rq.quaternion();
@@ -114,5 +122,17 @@ impl PhysicsTransform {
                 storage_from_real(q.scalar()),
             ),
         }
+    }
+}
+
+impl From<PhysicsTransform> for Isometry<Real> {
+    fn from(pt: PhysicsTransform) -> Self {
+        pt.to_isometry()
+    }
+}
+
+impl From<&Isometry<Real>> for PhysicsTransform {
+    fn from(iso: &Isometry<Real>) -> Self {
+        Self::from_isometry(iso)
     }
 }

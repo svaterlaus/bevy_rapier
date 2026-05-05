@@ -15,7 +15,7 @@ const TICKS_BEFORE_DRIFT_CHECK: u32 = 120;
 const TICKS_BEFORE_SUBMETER_SAMPLES: u32 = 12;
 
 #[derive(Component)]
-struct HelioProbe;
+struct Probe;
 
 fn main() {
     App::new()
@@ -58,14 +58,14 @@ fn assert_physics_transform_routing(cfgs: Query<&RapierConfiguration, With<Defau
     let cfg = cfgs.single().expect("default rapier context");
     assert!(
         cfg.physics_transform_routing == PhysicsTransformRouting::PhysicsTransform,
-        "heliocentric_smoke assumes PhysicsTransformRouting::PhysicsTransform (f64 default)"
+        "physics_transform_smoke assumes PhysicsTransformRouting::PhysicsTransform (f64 default)"
     );
 }
 
 fn setup_physics(mut commands: Commands) {
     let v = DVec2::new(1.23456789012345, -0.000987654321);
     commands.spawn((
-        HelioProbe,
+        Probe,
         PhysicsTransform {
             translation: DVec2::new(5_000_000.0, 0.0),
             rotation: 0.0,
@@ -83,7 +83,7 @@ fn setup_physics(mut commands: Commands) {
 #[derive(Default)]
 struct LogTicks(u32);
 
-fn tick_probe_logging(mut n: Local<LogTicks>, probe: Query<&PhysicsTransform, With<HelioProbe>>) {
+fn tick_probe_logging(mut n: Local<LogTicks>, probe: Query<&PhysicsTransform, With<Probe>>) {
     if n.0 >= TICKS_BEFORE_SUBMETER_SAMPLES {
         return;
     }
@@ -108,7 +108,7 @@ struct DriftProbe {
 
 fn drift_check(
     mut s: Local<DriftProbe>,
-    probe: Query<(&PhysicsTransform, &Velocity), With<HelioProbe>>,
+    probe: Query<(&PhysicsTransform, &Velocity), With<Probe>>,
 ) {
     if s.checked {
         return;

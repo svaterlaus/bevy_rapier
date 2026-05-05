@@ -16,28 +16,23 @@ use bevy::math::DVec3;
 /// World-space origin used to re-centre all [`PhysicsTransform`] positions before writing to
 /// [`Transform`].
 ///
-/// Set this each frame to the camera's position in physics space (a `DVec2`/`DVec3`).  The bridge
-/// system subtracts `RenderOrigin` from each body's `PhysicsTransform.translation` in f64, then
-/// narrows the small residual to f32, keeping every entity within a bounded window around the
-/// camera where f32 precision is adequate.
+/// Set [`RenderOrigin::position`] each frame to the camera's location in physics space (a
+/// `DVec2`/`DVec3`).  The bridge system subtracts it from each body's
+/// `PhysicsTransform.translation` in f64, then narrows the small residual to f32, keeping every
+/// entity within a bounded window around the camera where f32 precision is adequate.
 ///
 /// Defaults to zero (world origin). Mutation is intentionally left to game code — a typical use is
-/// a one-line system that copies the camera's `PhysicsTransform.translation` into this resource
-/// each `PostUpdate` frame.
-#[derive(Resource, Debug, Clone, Copy, Reflect)]
-#[reflect(Resource)]
-pub struct RenderOrigin(
-    #[cfg(feature = "dim2")] pub DVec2,
-    #[cfg(feature = "dim3")] pub DVec3,
-);
-
-impl Default for RenderOrigin {
-    fn default() -> Self {
-        #[cfg(feature = "dim2")]
-        return Self(DVec2::ZERO);
-        #[cfg(feature = "dim3")]
-        return Self(DVec3::ZERO);
-    }
+/// a one-line system that copies the camera's `PhysicsTransform.translation` into
+/// [`RenderOrigin::position`] each `PostUpdate` frame.
+#[derive(Resource, Debug, Clone, Copy, Default, Reflect)]
+#[reflect(Resource, Default)]
+pub struct RenderOrigin {
+    /// World-space camera position used as the rendering reference.
+    #[cfg(feature = "dim2")]
+    pub position: DVec2,
+    /// World-space camera position used as the rendering reference.
+    #[cfg(feature = "dim3")]
+    pub position: DVec3,
 }
 
 /// Opt-in plugin that drives [`Transform`] from [`PhysicsTransform`] relative to [`RenderOrigin`].
@@ -82,14 +77,14 @@ pub fn sync_physics_transform_to_transform(
         // Subtract in f64 first; only the small offset from origin enters f32.
         #[cfg(feature = "dim2")]
         {
-            let rel = (pt.translation - origin.0).as_vec2();
+            let rel = (pt.translation - origin.position).as_vec2();
             t.translation.x = rel.x;
             t.translation.y = rel.y;
             t.rotation = Quat::from_rotation_z(pt.rotation as f32);
         }
         #[cfg(feature = "dim3")]
         {
-            let rel = (pt.translation - origin.0).as_vec3();
+            let rel = (pt.translation - origin.position).as_vec3();
             t.translation = rel;
             t.rotation = pt.rotation.as_quat();
         }
