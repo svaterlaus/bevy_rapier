@@ -270,9 +270,9 @@ pub fn apply_rigid_body_user_changes(
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
             .into_inner();
         if let Some(rb) = rigidbody_set.bodies.get_mut(handle.0) {
-            rb.set_linvel(velocity.linvel.into(), true);
+            rb.set_linvel(velocity.linear, true);
             #[allow(clippy::useless_conversion)] // Need to convert if dim3 enabled
-            rb.set_angvel(velocity.angvel.into(), true);
+            rb.set_angvel(velocity.angular.into(), true);
         }
     }
 
@@ -323,7 +323,7 @@ pub fn apply_rigid_body_user_changes(
         if let Some(rb) = rigidbody_set.bodies.get_mut(handle.0) {
             rb.reset_forces(true);
             rb.reset_torques(true);
-            rb.add_force(forces.force.into(), true);
+            rb.add_force(forces.force, true);
             #[allow(clippy::useless_conversion)] // Need to convert if dim3 enabled
             rb.add_torque(forces.torque.into(), true);
         }
@@ -335,7 +335,7 @@ pub fn apply_rigid_body_user_changes(
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
             .into_inner();
         if let Some(rb) = rigidbody_set.bodies.get_mut(handle.0) {
-            rb.apply_impulse(impulses.impulse.into(), true);
+            rb.apply_impulse(impulses.impulse, true);
             #[allow(clippy::useless_conversion)] // Need to convert if dim3 enabled
             rb.apply_torque_impulse(impulses.torque_impulse.into(), true);
             impulses.reset();
@@ -546,11 +546,11 @@ pub fn writeback_rigid_bodies(
 
             if let Some(velocity) = &mut velocity {
                 let new_vel = Velocity {
-                    linvel: (*rb.linvel()).into(),
+                    linear: rb.linvel(),
                     #[cfg(feature = "dim3")]
-                    angvel: (*rb.angvel()).into(),
+                    angular: rb.angvel(),
                     #[cfg(feature = "dim2")]
-                    angvel: rb.angvel(),
+                    angular: rb.angvel(),
                 };
 
                 // NOTE: we write the new value only if there was an
@@ -621,10 +621,10 @@ pub fn init_rigid_bodies(
             continue;
         };
 
-        let pose_iso: rapier::math::Isometry<crate::math::Real> =
+        let pose: rapier::math::Pose =
             match rapier_configuration.physics_transform_routing {
                 PhysicsTransformRouting::PhysicsTransform => physics_transform
-                    .map(|p| p.to_isometry())
+                    .map(|p| p.to_pose())
                     .or_else(|| transform.map(|t| utils::transform_to_iso(&t.compute_transform())))
                     .unwrap_or_default(),
                 PhysicsTransformRouting::GlobalTransform => transform
@@ -634,11 +634,11 @@ pub fn init_rigid_bodies(
 
         let mut builder = RigidBodyBuilder::new((*rb).into());
         builder = builder.enabled(disabled.is_none());
-        builder = builder.pose(pose_iso);
+        builder = builder.pose(pose);
 
         #[allow(clippy::useless_conversion)] // Need to convert if dim3 enabled
         if let Some(vel) = vel {
-            builder = builder.linvel(vel.linvel.into()).angvel(vel.angvel.into());
+            builder = builder.linvel(vel.linear.into()).angvel(vel.angular.into());
         }
 
         if let Some(locked_axes) = locked_axes {
@@ -751,7 +751,7 @@ pub fn apply_initial_rigid_body_impulses(
             // Make sure the mass-properties are computed.
             rb.recompute_mass_properties_from_colliders(&context_colliders.colliders);
             // Apply the impulse.
-            rb.apply_impulse(impulse.impulse.into(), false);
+            rb.apply_impulse(impulse.impulse, false);
 
             #[allow(clippy::useless_conversion)] // Need to convert if dim3 enabled
             rb.apply_torque_impulse(impulse.torque_impulse.into(), false);

@@ -73,8 +73,8 @@ fn setup_physics(mut commands: Commands) {
         Transform::IDENTITY,
         RigidBody::Dynamic,
         Velocity {
-            linvel: v,
-            angvel: 0.0,
+            linear: v,
+            angular: 0.0,
         },
         Collider::ball(1.0),
     ));
@@ -123,7 +123,7 @@ fn drift_check(
 
     let elapsed = TICKS_BEFORE_DRIFT_CHECK as f64 * DT_RAP;
     let p0 = DVec2::new(5_000_000.0, 0.0);
-    let expected = p0 + vel.linvel * elapsed;
+    let expected = p0 + vel.linear * elapsed;
     let err = (expected - pt.translation).length();
     assert!(
         err < 1.0e-9,

@@ -8,6 +8,15 @@ use bevy::math::bounding::Aabb2d as BevyAabb;
 #[cfg(feature = "dim3")]
 use bevy::math::bounding::Aabb3d as BevyAabb;
 
+#[cfg(feature = "dim2")]
+fn aabb_na_from_bevy(aabb: &BevyAabb) -> Aabb {
+    rapier::parry::bounding_volume::Aabb::new(
+        AsPrecise::as_precise(aabb.min),
+        AsPrecise::as_precise(aabb.max),
+    )
+}
+
+#[cfg(feature = "dim3")]
 fn aabb_na_from_bevy(aabb: &BevyAabb) -> Aabb {
     rapier::parry::bounding_volume::Aabb::new(
         AsPrecise::as_precise(aabb.min).into(),
@@ -15,34 +24,35 @@ fn aabb_na_from_bevy(aabb: &BevyAabb) -> Aabb {
     )
 }
 
+#[cfg(feature = "dim2")]
 fn aabb_bevy_from_na(aabb: &Aabb) -> BevyAabb {
-    #[cfg(feature = "dim2")]
-    {
-        let mins = aabb.mins.coords;
-        let maxs = aabb.maxs.coords;
-        BevyAabb {
-            min: bevy::prelude::Vec2::new(mins.x.as_single(), mins.y.as_single()),
-            max: bevy::prelude::Vec2::new(maxs.x.as_single(), maxs.y.as_single()),
-        }
+    BevyAabb {
+        min: bevy::prelude::Vec2::new(
+            aabb.mins.x.as_single(),
+            aabb.mins.y.as_single(),
+        ),
+        max: bevy::prelude::Vec2::new(
+            aabb.maxs.x.as_single(),
+            aabb.maxs.y.as_single(),
+        ),
     }
-    #[cfg(feature = "dim3")]
-    {
-        let mins = aabb.mins.coords;
-        let maxs = aabb.maxs.coords;
-        BevyAabb {
-            min: bevy::prelude::Vec3::new(
-                mins.x.as_single(),
-                mins.y.as_single(),
-                mins.z.as_single(),
-            )
-            .into(),
-            max: bevy::prelude::Vec3::new(
-                maxs.x.as_single(),
-                maxs.y.as_single(),
-                maxs.z.as_single(),
-            )
-            .into(),
-        }
+}
+
+#[cfg(feature = "dim3")]
+fn aabb_bevy_from_na(aabb: &Aabb) -> BevyAabb {
+    BevyAabb {
+        min: bevy::prelude::Vec3::new(
+            aabb.mins.x.as_single(),
+            aabb.mins.y.as_single(),
+            aabb.mins.z.as_single(),
+        )
+        .into(),
+        max: bevy::prelude::Vec3::new(
+            aabb.maxs.x.as_single(),
+            aabb.maxs.y.as_single(),
+            aabb.maxs.z.as_single(),
+        )
+        .into(),
     }
 }
 
@@ -69,12 +79,12 @@ macro_rules! impl_ref_methods(
 
             /// Shortcut to [`Voxels::local_aabb`].
             pub fn extents(&self) -> Vect {
-                self.raw.local_aabb().extents().into()
+                self.raw.local_aabb().extents()
             }
 
             /// Shortcut to [`Voxels::local_aabb`].
             pub fn domain_center(&self) -> Vect {
-                self.raw.local_aabb().center().coords.into()
+                self.raw.local_aabb().center()
             }
 
             /// Shortcut to [`Voxels::domain`].
@@ -107,15 +117,7 @@ macro_rules! impl_ref_methods(
 
             /// Shortcut to [`Voxels::voxel_at_point`].
             pub fn voxel_at_point_unchecked(&self, point: Vect) -> IVect {
-                let p = self.raw.voxel_at_point(point.into());
-                #[cfg(feature = "dim2")]
-                {
-                    IVect::new(p.x, p.y)
-                }
-                #[cfg(feature = "dim3")]
-                {
-                    IVect::new(p.x, p.y, p.z)
-                }
+                self.raw.voxel_at_point(point)
             }
 
             /// Shortcut to [`Voxels::voxel_at_point`].
@@ -212,7 +214,7 @@ impl<'a> VoxelsViewMut<'a> {
     /// Shortcut to set voxel state with bounds checking.
     pub fn try_set_voxel(&mut self, key: IVect, is_filled: bool) -> Option<VoxelState> {
         if self.is_voxel_in_bounds(key) {
-            Some(self.raw.set_voxel(key.into(), is_filled))
+            Some(self.raw.set_voxel(key, is_filled))
         } else {
             None
         }
@@ -220,11 +222,11 @@ impl<'a> VoxelsViewMut<'a> {
 
     /// Shortcut to to [`Voxels::set_voxel`].
     pub fn set_voxel(&mut self, key: IVect, is_filled: bool) -> VoxelState {
-        self.raw.set_voxel(key.into(), is_filled)
+        self.raw.set_voxel(key, is_filled)
     }
 
     /// Shortcut to [`Voxels::crop`].
     pub fn crop(&mut self, domain_mins: IVect, domain_maxs: IVect) {
-        self.raw.crop(domain_mins.into(), domain_maxs.into());
+        self.raw.crop(domain_mins, domain_maxs);
     }
 }

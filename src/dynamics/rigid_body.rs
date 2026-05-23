@@ -1,7 +1,7 @@
 use crate::math::{Real, Vect};
 use bevy::prelude::*;
 use rapier::prelude::{
-    Isometry, LockedAxes as RapierLockedAxes, RigidBodyActivation, RigidBodyHandle, RigidBodyType,
+    LockedAxes as RapierLockedAxes, Pose, RigidBodyActivation, RigidBodyHandle, RigidBodyType,
 };
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
@@ -87,53 +87,53 @@ impl From<RigidBodyType> for RigidBody {
 #[reflect(Component, Default, PartialEq)]
 pub struct Velocity {
     /// The linear velocity of the [`RigidBody`].
-    pub linvel: Vect,
+    pub linear: Vect,
     /// The angular velocity of the [`RigidBody`] in radian per second.
     #[cfg(feature = "dim2")]
-    pub angvel: Real,
+    pub angular: Real,
     /// The angular velocity of the [`RigidBody`].
     #[cfg(feature = "dim3")]
-    pub angvel: Vect,
+    pub angular: Vect,
 }
 
 impl Velocity {
     /// Initialize a velocity set to zero.
     pub const fn zero() -> Self {
         Self {
-            linvel: Vect::ZERO,
+            linear: Vect::ZERO,
             #[cfg(feature = "dim2")]
-            angvel: 0.0,
+            angular: 0.0,
             #[cfg(feature = "dim3")]
-            angvel: Vect::ZERO,
+            angular: Vect::ZERO,
         }
     }
 
     /// Initialize a velocity with the given linear velocity, and an angular velocity of zero.
-    pub const fn linear(linvel: Vect) -> Self {
+    pub const fn linear(linear: Vect) -> Self {
         Self {
-            linvel,
+            linear,
             #[cfg(feature = "dim2")]
-            angvel: 0.0,
+            angular: 0.0,
             #[cfg(feature = "dim3")]
-            angvel: Vect::ZERO,
+            angular: Vect::ZERO,
         }
     }
 
     /// Initialize a velocity with the given angular velocity, and a linear velocity of zero.
     #[cfg(feature = "dim2")]
-    pub const fn angular(angvel: Real) -> Self {
+    pub const fn angular(angular: Real) -> Self {
         Self {
-            linvel: Vect::ZERO,
-            angvel,
+            linear: Vect::ZERO,
+            angular,
         }
     }
 
     /// Initialize a velocity with the given angular velocity, and a linear velocity of zero.
     #[cfg(feature = "dim3")]
-    pub const fn angular(angvel: Vect) -> Self {
+    pub const fn angular(angular: Vect) -> Self {
         Self {
-            linvel: Vect::ZERO,
-            angvel,
+            linear: Vect::ZERO,
+            angular,
         }
     }
 
@@ -144,10 +144,10 @@ impl Velocity {
     /// - `center_of_mass`: the center-of-mass (world-space) of the [`RigidBody`] the velocity belongs to.
     pub fn linear_velocity_at_point(&self, point: Vect, center_of_mass: Vect) -> Vect {
         #[cfg(feature = "dim2")]
-        return self.linvel + self.angvel * (point - center_of_mass).perp();
+        return self.linear + self.angular * (point - center_of_mass).perp();
 
         #[cfg(feature = "dim3")]
-        return self.linvel + self.angvel.cross(point - center_of_mass);
+        return self.linear + self.angular.cross(point - center_of_mass);
     }
 }
 
@@ -244,7 +244,7 @@ impl MassProperties {
     #[cfg(feature = "dim2")]
     pub fn into_rapier(self) -> rapier::dynamics::MassProperties {
         rapier::dynamics::MassProperties::new(
-            self.local_center_of_mass.into(),
+            self.local_center_of_mass,
             self.mass,
             self.principal_inertia,
         )
@@ -254,10 +254,10 @@ impl MassProperties {
     #[cfg(feature = "dim3")]
     pub fn into_rapier(self) -> rapier::dynamics::MassProperties {
         rapier::dynamics::MassProperties::with_principal_inertia_frame(
-            self.local_center_of_mass.into(),
+            self.local_center_of_mass,
             self.mass,
-            self.principal_inertia.into(),
-            self.principal_inertia_local_frame.into(),
+            self.principal_inertia,
+            self.principal_inertia_local_frame,
         )
     }
 
@@ -596,16 +596,16 @@ impl Default for Damping {
 #[derive(Copy, Clone, Debug, Default, PartialEq, Component)]
 pub struct TransformInterpolation {
     /// The starting point of the interpolation.
-    pub start: Option<Isometry<Real>>,
+    pub start: Option<Pose>,
     /// The end point of the interpolation.
-    pub end: Option<Isometry<Real>>,
+    pub end: Option<Pose>,
 }
 
 impl TransformInterpolation {
     /// Interpolates between the start and end positions with `t` in the range `[0..1]`.
-    pub fn lerp_slerp(&self, t: Real) -> Option<Isometry<Real>> {
+    pub fn lerp_slerp(&self, t: Real) -> Option<Pose> {
         if let (Some(start), Some(end)) = (self.start, self.end) {
-            Some(start.lerp_slerp(&end, t))
+            Some(start.lerp(&end, t))
         } else {
             None
         }

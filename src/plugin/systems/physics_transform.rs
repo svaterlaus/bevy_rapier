@@ -81,7 +81,7 @@ pub fn apply_physics_transform_user_changes(
             match rb.body_type() {
                 RigidBodyType::KinematicPositionBased => {
                     if physics_changed == Some(true) {
-                        rb.set_next_kinematic_position(physics_transform.to_isometry());
+                        rb.set_next_kinematic_position(physics_transform.to_pose());
                         rigidbody_set
                             .last_body_physics_transform_set
                             .insert(handle.0, *physics_transform);
@@ -89,7 +89,7 @@ pub fn apply_physics_transform_user_changes(
                 }
                 _ => {
                     if physics_changed == Some(true) {
-                        rb.set_position(physics_transform.to_isometry(), true);
+                        rb.set_position(physics_transform.to_pose(), true);
                         rigidbody_set
                             .last_body_physics_transform_set
                             .insert(handle.0, *physics_transform);
@@ -154,7 +154,7 @@ pub fn writeback_physics_transform(
                 }
             }
 
-            let new_pt = PhysicsTransform::from_isometry(&interpolated_iso);
+            let new_pt = PhysicsTransform::from_pose(&interpolated_iso);
 
             if *physics_transform != new_pt {
                 *physics_transform = new_pt;
@@ -241,8 +241,8 @@ mod tests {
             Transform::IDENTITY,
             RigidBody::Dynamic,
             Velocity {
-                linvel: DVec2::new(-200.45, 80.125),
-                angvel: 0.0,
+                linear: DVec2::new(-200.45, 80.125),
+                angular: 0.0,
             },
             Collider::ball(0.25),
         ));

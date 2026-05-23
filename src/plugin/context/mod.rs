@@ -321,7 +321,7 @@ impl<'a> RapierQueryPipeline<'a> {
         max_toi: Real,
         solid: bool,
     ) -> Option<(Entity, Real)> {
-        let ray = Ray::new(ray_origin.into(), ray_dir.into());
+        let ray = Ray::new(ray_origin, ray_dir);
 
         let (h, toi) = self.query_pipeline.cast_ray(&ray, max_toi, solid)?;
 
@@ -345,7 +345,7 @@ impl<'a> RapierQueryPipeline<'a> {
         max_toi: Real,
         solid: bool,
     ) -> Option<(Entity, RayIntersection)> {
-        let ray = Ray::new(ray_origin.into(), ray_dir.into());
+        let ray = Ray::new(ray_origin, ray_dir);
 
         let (h, result) = self
             .query_pipeline
@@ -375,7 +375,7 @@ impl<'a> RapierQueryPipeline<'a> {
         max_toi: Real,
         solid: bool,
     ) -> impl Iterator<Item = (Entity, RayIntersection)> + 'a {
-        let ray = Ray::new(ray_origin.into(), ray_dir.into());
+        let ray = Ray::new(ray_origin, ray_dir);
 
         self.query_pipeline.intersect_ray(ray, max_toi, solid).map(
             move |(collider_handle, _, intersection)| {
@@ -398,7 +398,7 @@ impl<'a> RapierQueryPipeline<'a> {
         shape_rot: Rot,
         shape: &'a dyn Shape,
     ) -> impl Iterator<Item = Entity> + 'a {
-        let scaled_transform = (shape_pos, shape_rot).into();
+        let scaled_transform = crate::utils::pose_from(shape_pos, shape_rot);
 
         self.query_pipeline
             .intersect_shape(scaled_transform, shape)
@@ -420,9 +420,7 @@ impl<'a> RapierQueryPipeline<'a> {
         max_dist: Real,
         solid: bool,
     ) -> Option<(Entity, PointProjection)> {
-        let (h, result) = self
-            .query_pipeline
-            .project_point(&point.into(), max_dist, solid)?;
+        let (h, result) = self.query_pipeline.project_point(point, max_dist, solid)?;
 
         Some((
             self.collider_entity(h),
@@ -436,7 +434,7 @@ impl<'a> RapierQueryPipeline<'a> {
     /// * `point` - The point used for the containment test.
     pub fn intersect_point(&'a self, point: Vect) -> impl Iterator<Item = Entity> + 'a {
         self.query_pipeline
-            .intersect_point(point.into())
+            .intersect_point(point)
             .map(move |(collider_handle, _)| self.collider_entity(collider_handle))
     }
 
@@ -455,9 +453,7 @@ impl<'a> RapierQueryPipeline<'a> {
         &self,
         point: Vect,
     ) -> Option<(Entity, PointProjection, FeatureId)> {
-        let (h, proj, fid) = self
-            .query_pipeline
-            .project_point_and_get_feature(&point.into())?;
+        let (h, proj, fid) = self.query_pipeline.project_point_and_get_feature(point)?;
 
         Some((
             self.collider_entity(h),
@@ -475,6 +471,12 @@ impl<'a> RapierQueryPipeline<'a> {
         #[cfg(feature = "dim2")] aabb: bevy::math::bounding::Aabb2d,
         #[cfg(feature = "dim3")] aabb: bevy::math::bounding::Aabb3d,
     ) -> impl Iterator<Item = Entity> + 'a {
+        #[cfg(feature = "dim2")]
+        let scaled_aabb = Aabb {
+            mins: crate::math::AsPrecise::as_precise(aabb.min),
+            maxs: crate::math::AsPrecise::as_precise(aabb.max),
+        };
+        #[cfg(feature = "dim3")]
         let scaled_aabb = Aabb {
             mins: crate::math::AsPrecise::as_precise(aabb.min).into(),
             maxs: crate::math::AsPrecise::as_precise(aabb.max).into(),
@@ -513,11 +515,11 @@ impl<'a> RapierQueryPipeline<'a> {
         shape: &dyn Shape,
         options: ShapeCastOptions,
     ) -> Option<(Entity, ShapeCastHit)> {
-        let scaled_transform = (shape_pos, shape_rot).into();
+        let scaled_transform = crate::utils::pose_from(shape_pos, shape_rot);
 
         let (h, result) =
             self.query_pipeline
-                .cast_shape(&scaled_transform, &shape_vel.into(), shape, options)?;
+                .cast_shape(&scaled_transform, shape_vel, shape, options)?;
 
         Some((
             self.collider_entity(h),
@@ -776,7 +778,7 @@ impl RapierContextSimulation {
 
                     for _ in 0..substeps {
                         self.pipeline.step(
-                            &gravity.into(),
+                            gravity,
                             &substep_integration_parameters,
                             &mut self.islands,
                             &mut self.broad_phase,
@@ -808,7 +810,7 @@ impl RapierContextSimulation {
 
                 for _ in 0..substeps {
                     self.pipeline.step(
-                        &gravity.into(),
+                        gravity,
                         &substep_integration_parameters,
                         &mut self.islands,
                         &mut self.broad_phase,
@@ -832,7 +834,7 @@ impl RapierContextSimulation {
 
                 for _ in 0..substeps {
                     self.pipeline.step(
-                        &gravity.into(),
+                        gravity,
                         &substep_integration_parameters,
                         &mut self.islands,
                         &mut self.broad_phase,
@@ -901,10 +903,11 @@ impl RapierContextSimulation {
         options: &MoveShapeOptions,
         mut events: impl FnMut(CharacterCollision),
     ) -> MoveShapeOutput {
-        let up = options
-            .up
-            .try_into()
-            .expect("The up vector must be non-zero.");
+        assert!(
+            options.up.length_squared() > 0.0,
+            "The up vector must be non-zero."
+        );
+        let up = options.up.normalize();
         let autostep = options.autostep.map(|autostep| CharacterAutostep {
             max_height: autostep.max_height,
             min_width: autostep.min_width,
@@ -934,8 +937,8 @@ impl RapierContextSimulation {
             dt,
             &rapier_query_pipeline.query_pipeline.as_ref(),
             shape,
-            &(shape_translation, shape_rotation).into(),
-            movement.into(),
+            &crate::utils::pose_from(shape_translation, shape_rotation),
+            movement,
             |c| {
                 if let Some(collision) = CharacterCollision::from_raw_with_set(colliders, &c, true)
                 {
@@ -956,7 +959,7 @@ impl RapierContextSimulation {
         };
 
         MoveShapeOutput {
-            effective_translation: result.translation.into(),
+            effective_translation: result.translation,
             grounded: result.grounded,
             is_sliding_down_slope: result.is_sliding_down_slope,
         }

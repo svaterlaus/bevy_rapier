@@ -43,8 +43,8 @@ pub mod math {
     #[cfg(feature = "f64")]
     pub type Vect = bevy::math::DVec2;
 
-    /// Integer grid offsets in the physics plane (`i32` components).
-    pub type IVect = bevy::math::IVec2;
+    /// Integer grid offsets in the physics plane, matching Rapier's [`IVector`](rapier::math::IVector).
+    pub type IVect = rapier::math::IVector;
     /// 2D rotation as a scalar angle (radians), matching Rapier representation.
     pub type Rot = Real;
 }
@@ -63,8 +63,8 @@ pub mod math {
     #[cfg(feature = "f64")]
     pub type Vect = bevy::math::DVec3;
 
-    /// Integer grid offsets in the physics volume (`i32` components).
-    pub type IVect = bevy::math::IVec3;
+    /// Integer grid offsets in the physics volume, matching Rapier's [`IVector`](rapier::math::IVector).
+    pub type IVect = rapier::math::IVector;
     /// Unit quaternion rotation matching Rapier representation.
     #[cfg(feature = "f32")]
     pub type Rot = bevy::math::Quat;
