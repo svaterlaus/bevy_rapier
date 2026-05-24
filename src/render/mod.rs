@@ -1,9 +1,14 @@
-use crate::math::AsSingle;
+use crate::math::{AsSingle, Real};
 use crate::plugin::context::{
     RapierContextColliders, RapierContextJoints, RapierContextSimulation, RapierRigidBodySet,
 };
+use crate::plugin::render_bridge::RenderOrigin;
 use bevy::prelude::*;
 use bevy::transform::TransformSystems;
+#[cfg(feature = "dim2")]
+use bevy::math::DVec2;
+#[cfg(feature = "dim3")]
+use bevy::math::DVec3;
 use rapier::math::Vector;
 use rapier::pipeline::{DebugRenderBackend, DebugRenderObject, DebugRenderPipeline};
 pub use rapier::pipeline::{DebugRenderMode, DebugRenderStyle};
@@ -33,6 +38,11 @@ pub enum ColliderDebug {
 /// Plugin rensponsible for rendering (using lines) what Rapier "sees" when performing
 /// its physics simulation. This is typically useful to check proper
 /// alignment between colliders and your own visual assets.
+///
+/// When a [`RenderOrigin`] resource is present (for example after adding
+/// [`crate::plugin::PhysicsTransformRenderBridgePlugin`]), debug lines are re-centered by
+/// subtracting that origin in `f64` before narrowing to `f32`, matching camera-relative
+/// [`Transform`] output from the render bridge.
 pub struct RapierDebugRenderPlugin {
     /// Whether to show debug gizmos for all colliders.
     ///
@@ -130,6 +140,33 @@ struct BevyLinesRenderBackend<'world, 'state, 'world2, 'state2, 'a, 'c, 'd, 'v, 
     override_visibility: &'v Query<'world, 'state, &'a ColliderDebug>,
     context_colliders: &'d RapierContextColliders,
     gizmos: &'p mut Gizmos<'world2, 'state2>,
+    render_origin: RenderOrigin,
+}
+
+#[inline]
+fn real_to_f64(r: Real) -> f64 {
+    #[cfg(feature = "f64")]
+    {
+        r
+    }
+    #[cfg(feature = "f32")]
+    {
+        r as f64
+    }
+}
+
+#[cfg(feature = "dim2")]
+fn debug_point_to_gizmo(v: Vector, origin: DVec2) -> Vec3 {
+    let world = DVec2::new(real_to_f64(v.x), real_to_f64(v.y));
+    let rel = world - origin;
+    let rel = rel.as_single();
+    Vec3::new(rel.x, rel.y, 0.0)
+}
+
+#[cfg(feature = "dim3")]
+fn debug_point_to_gizmo(v: Vector, origin: DVec3) -> Vec3 {
+    let world = DVec3::new(real_to_f64(v.x), real_to_f64(v.y), real_to_f64(v.z));
+    (world - origin).as_single()
 }
 
 impl<'world, 'state, 'world2, 'state2, 'a, 'c, 'd, 'v, 'p>
@@ -183,8 +220,8 @@ impl<'world, 'state, 'world2, 'state2, 'a, 'c, 'd, 'v, 'p> DebugRenderBackend
 
         let color = self.object_color(object, color);
         self.gizmos.line(
-            Vec3::new(a.x.as_single(), a.y.as_single(), 0.0),
-            Vec3::new(b.x.as_single(), b.y.as_single(), 0.0),
+            debug_point_to_gizmo(a, self.render_origin.position),
+            debug_point_to_gizmo(b, self.render_origin.position),
             Color::hsla(color[0], color[1], color[2], color[3]),
         )
     }
@@ -197,8 +234,8 @@ impl<'world, 'state, 'world2, 'state2, 'a, 'c, 'd, 'v, 'p> DebugRenderBackend
 
         let color = self.object_color(object, color);
         self.gizmos.line(
-            Vec3::new(a.x.as_single(), a.y.as_single(), a.z.as_single()),
-            Vec3::new(b.x.as_single(), b.y.as_single(), b.z.as_single()),
+            debug_point_to_gizmo(a, self.render_origin.position),
+            debug_point_to_gizmo(b, self.render_origin.position),
             Color::hsla(color[0], color[1], color[2], color[3]),
         )
     }
@@ -212,6 +249,7 @@ fn debug_render_scene<'a>(
         &RapierRigidBodySet,
     )>,
     mut render_context: ResMut<DebugRenderContext>,
+    render_origin: Option<Res<RenderOrigin>>,
     mut gizmos: Gizmos,
     custom_colors: Query<&'a ColliderDebugColor>,
     override_visibility: Query<&'a ColliderDebug>,
@@ -219,6 +257,10 @@ fn debug_render_scene<'a>(
     if !render_context.enabled {
         return;
     }
+    let render_origin = render_origin
+        .as_deref()
+        .copied()
+        .unwrap_or_default();
     for (rapier_context, rapier_context_colliders, joints, rigidbody_set) in rapier_context.iter() {
         let mut backend = BevyLinesRenderBackend {
             custom_colors: &custom_colors,
@@ -226,6 +268,7 @@ fn debug_render_scene<'a>(
             override_visibility: &override_visibility,
             context_colliders: rapier_context_colliders,
             gizmos: &mut gizmos,
+            render_origin,
         };
 
         let unscaled_style = render_context.pipeline.style;

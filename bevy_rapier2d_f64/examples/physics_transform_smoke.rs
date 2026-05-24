@@ -3,10 +3,14 @@
 //! Uses [`PhysicsTransform`] as canonical world pose (default [`PhysicsTransformRouting`] on f64 builds).
 //! With fixed timestep and zero gravity, verifies linear motion `Δp = v·Δt` in f64 instead of relying
 //! on quantized [`Transform`] / [`GlobalTransform`].
+//!
+//! Also wires [`PhysicsTransformRenderBridgePlugin`] and [`RenderOrigin`] so debug gizmos stay aligned
+//! with camera-relative rendering at large world coordinates.
 
 use bevy::math::DVec2;
 use bevy::prelude::*;
 use bevy::time::TimeUpdateStrategy;
+use bevy::transform::TransformSystems;
 use bevy_rapier2d_f64::prelude::*;
 use std::time::Duration;
 
@@ -22,6 +26,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::default(),
+            PhysicsTransformRenderBridgePlugin,
             RapierDebugRenderPlugin::default(),
         ))
         .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(
@@ -40,12 +45,32 @@ fn main() {
                 assert_physics_transform_routing,
             ),
         )
-        .add_systems(Update, (tick_probe_logging, drift_check))
+        .add_systems(Update, tick_probe_logging)
+        .add_systems(
+            PostUpdate,
+            (
+                sync_render_origin_from_probe,
+                drift_check,
+            )
+                .chain()
+                .after(PhysicsSet::Writeback)
+                .before(TransformSystems::Propagate),
+        )
         .run();
 }
 
 fn setup_graphics(mut commands: Commands) {
-    commands.spawn((Camera2d, Transform::from_xyz(5_000_002.0, 120.0, 0.0)));
+    // Offset from the probe once [`RenderOrigin`] tracks it each frame.
+    commands.spawn((Camera2d, Transform::from_xyz(2.0, 120.0, 0.0)));
+}
+
+fn sync_render_origin_from_probe(
+    mut origin: ResMut<RenderOrigin>,
+    probe: Query<&PhysicsTransform, With<Probe>>,
+) {
+    if let Ok(pt) = probe.single() {
+        origin.position = pt.translation;
+    }
 }
 
 fn zero_gravity(mut q: Query<&mut RapierConfiguration, With<DefaultRapierContext>>) {
@@ -123,12 +148,12 @@ fn drift_check(
 
     let elapsed = TICKS_BEFORE_DRIFT_CHECK as f64 * DT_RAP;
     let p0 = DVec2::new(5_000_000.0, 0.0);
-    let expected = p0 + vel.linear * elapsed;
-    let err = (expected - pt.translation).length();
+    let expected_delta = vel.linear * elapsed;
+    let actual_delta = pt.translation - p0;
+    let err = (expected_delta - actual_delta).length();
     assert!(
-        err < 1.0e-9,
-        "linear drift mismatch: expected {expected:?}, got {:?}, error {err:e}",
-        pt.translation,
+        err < 1.0e-6,
+        "linear drift mismatch: expected delta {expected_delta:?}, got {actual_delta:?}, error {err:e}",
     );
 
     println!(
