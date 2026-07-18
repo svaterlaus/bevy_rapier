@@ -108,7 +108,7 @@ pub fn writeback_physics_transform(
     sim_to_render_time: Query<&SimulationToRenderTime>,
     mut query: Query<
         (
-            &RapierRigidBodyHandle,
+            Entity,
             &RapierContextEntityLink,
             &mut PhysicsTransform,
             Option<&mut TransformInterpolation>,
@@ -116,7 +116,7 @@ pub fn writeback_physics_transform(
         (With<RigidBody>, Without<RigidBodyDisabled>),
     >,
 ) {
-    for (handle, link, mut physics_transform, mut interpolation) in query.iter_mut() {
+    for (entity, link, mut physics_transform, mut interpolation) in query.iter_mut() {
         let cfg = config
             .get(link.0)
             .expect("Could not get `RapierConfiguration`");
@@ -127,12 +127,16 @@ pub fn writeback_physics_transform(
             continue;
         }
 
-        let handle = handle.0;
-
         let rigid_body_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
             .into_inner();
+        // Resolve the handle from `entity2body`, which is populated synchronously when the body is
+        // created, so bodies registered earlier in this same schedule run (e.g. spawned this frame)
+        // are written back immediately.
+        let Some(handle) = rigid_body_set.entity2body.get(&entity).copied() else {
+            continue;
+        };
         let sim_to_render_time = sim_to_render_time
             .get(link.0)
             .expect("Could not get `SimulationToRenderTime`");

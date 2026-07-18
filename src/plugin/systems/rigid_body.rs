@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 /// Components that will be updated after a physics step.
 pub type RigidBodyWritebackComponents<'a> = (
-    &'a RapierRigidBodyHandle,
+    Entity,
     &'a RapierContextEntityLink,
     Option<&'a ChildOf>,
     Option<&'a mut Transform>,
@@ -417,7 +417,7 @@ pub fn writeback_rigid_bodies(
         (With<RigidBody>, Without<RigidBodyDisabled>),
     >,
 ) {
-    for (handle, link, child_of, transform, mut interpolation, mut velocity, mut sleeping) in
+    for (entity, link, child_of, transform, mut interpolation, mut velocity, mut sleeping) in
         writeback.iter_mut()
     {
         let config = config
@@ -426,12 +426,17 @@ pub fn writeback_rigid_bodies(
         if !config.physics_pipeline_active {
             continue;
         }
-        let handle = handle.0;
 
         let rigid_body_set = rigid_body_sets
             .get_mut(link.0)
             .expect(RAPIER_CONTEXT_EXPECT_ERROR)
             .into_inner();
+        // Resolve the handle from `entity2body`, which is populated synchronously when the body is
+        // created, so bodies registered earlier in this same schedule run (e.g. spawned this frame)
+        // are written back immediately.
+        let Some(handle) = rigid_body_set.entity2body.get(&entity).copied() else {
+            continue;
+        };
         let sim_to_render_time = sim_to_render_time
             .get(link.0)
             .expect("Could not get `SimulationToRenderTime`");
@@ -758,5 +763,115 @@ pub fn apply_initial_rigid_body_impulses(
 
             impulse.reset();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::plugin::{NoUserData, RapierPhysicsPlugin};
+    use crate::prelude::*;
+    use bevy::prelude::{App, Transform};
+    use bevy::time::{TimePlugin, TimeUpdateStrategy};
+    use bevy::transform::TransformPlugin;
+    use std::time::Duration;
+
+    const DT: Real = 1.0 / 60.0;
+    const SPEED: Real = 10.0;
+
+    fn spawn_frame_app(routing: PhysicsTransformRouting) -> App {
+        let mut app = App::new();
+        app.add_plugins((
+            TransformPlugin,
+            TimePlugin,
+            RapierPhysicsPlugin::<NoUserData>::default(),
+        ));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(
+            DT as f64,
+        )));
+        app.insert_resource(TimestepMode::Fixed {
+            dt: DT,
+            substeps: 1,
+        });
+        app.finish();
+
+        // Warm up so the physics context and its `RapierConfiguration` exist, then pin the pose
+        // routing explicitly so the test is independent of the build's default (which differs
+        // between the `f32` and `f64` crates).
+        for _ in 0..2 {
+            app.update();
+        }
+        let mut configs = app.world_mut().query::<&mut RapierConfiguration>();
+        for mut config in configs.iter_mut(app.world_mut()) {
+            config.physics_transform_routing = routing;
+        }
+        app
+    }
+
+    /// A body created while the simulation is already running must have the result of its first
+    /// simulation step written back on that same frame. Writeback resolves the Rapier handle
+    /// through `entity2body` (populated synchronously on creation) rather than the
+    /// `RapierRigidBodyHandle` component (inserted through deferred commands), so a body spawned
+    /// this frame is not skipped for one step.
+    #[test]
+    fn global_transform_writeback_runs_on_spawn_frame() {
+        let mut app = spawn_frame_app(PhysicsTransformRouting::GlobalTransform);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Transform::default(),
+                RigidBody::Dynamic,
+                Velocity::linear(Vect::X * SPEED),
+                Collider::ball(0.5),
+            ))
+            .id();
+
+        app.update();
+
+        let x = app
+            .world()
+            .entity(entity)
+            .get::<Transform>()
+            .expect("spawned body should have a `Transform`")
+            .translation
+            .x;
+        let expected = (SPEED * DT) as f32;
+        assert!(
+            (x - expected).abs() < 1.0e-3,
+            "spawn-frame writeback should advance x by ~{expected}, got {x}"
+        );
+    }
+
+    /// Same guarantee as [`global_transform_writeback_runs_on_spawn_frame`] for the
+    /// [`PhysicsTransform`] routing path.
+    #[test]
+    fn physics_transform_writeback_runs_on_spawn_frame() {
+        let mut app = spawn_frame_app(PhysicsTransformRouting::PhysicsTransform);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Transform::default(),
+                PhysicsTransform::default(),
+                RigidBody::Dynamic,
+                Velocity::linear(Vect::X * SPEED),
+                Collider::ball(0.5),
+            ))
+            .id();
+
+        app.update();
+
+        let x = app
+            .world()
+            .entity(entity)
+            .get::<PhysicsTransform>()
+            .expect("spawned body should have a `PhysicsTransform`")
+            .translation
+            .x;
+        let expected = (SPEED * DT) as f64;
+        assert!(
+            (x - expected).abs() < 1.0e-3,
+            "spawn-frame writeback should advance x by ~{expected}, got {x}"
+        );
     }
 }
