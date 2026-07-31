@@ -9,6 +9,12 @@ members = [
 ]
 resolver = "2"
 
+[workspace.dependencies]
+rapier2d = "=0.33.0-alpha"
+rapier2d-f64 = "=0.33.0-alpha"
+rapier3d = "=0.33.0-alpha"
+rapier3d-f64 = "=0.33.0-alpha"
+
 [profile.dev]
 # Use slightly better optimization by default, as examples otherwise seem laggy.
 opt-level = 1

@@ -151,6 +151,7 @@ pub fn update_hits(
                             position: Some(bevy::math::Vec3::new(ray.origin.x, ray.origin.y, 0.0)),
                             normal: None,
                             depth: 0.0,
+                            extra: None,
                         };
                         picks.push((entity, hit_data));
                     }
@@ -174,6 +175,7 @@ pub fn update_hits(
                                 intersection.normal.z.as_single(),
                             )),
                             depth: intersection.time_of_impact.as_single(),
+                            extra: None,
                         };
                         picks.push((entity, hit_data));
                     }
