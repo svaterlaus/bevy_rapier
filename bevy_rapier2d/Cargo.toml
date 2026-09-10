@@ -1,6 +1,6 @@
 [package]
 name = "bevy_rapier2d"
-version = "0.35.0"
+version = "0.36.0"
 authors = ["Sébastien Crozet <developer@crozet.re>"]
 description = "2-dimensional physics engine in Rust, official Bevy plugin."
 documentation = "http://docs.rs/bevy_rapier2d"
@@ -51,8 +51,7 @@ debug-render-3d = [
 rapier-debug-render = ["rapier2d/debug-render"]
 
 parallel = ["rapier2d/parallel"]
-simd-stable = ["rapier2d/simd-stable"]
-simd-nightly = ["rapier2d/simd-nightly"]
+simd8 = ["rapier2d/simd8"]
 serde-serialize = ["rapier2d/serde-serialize", "bevy/serialize", "serde"]
 enhanced-determinism = ["rapier2d/enhanced-determinism"]
 headless = []
@@ -106,10 +105,12 @@ features = ["debug-render-2d", "serde-serialize"]
 
 [package.metadata.cargo-all-features]
 
-denylist = ["simd-nightly"]
+# `enhanced-determinism` enables `glam/scalar-math` (through parry), which removes the serde
+# impls of `glam::BVec3A`/`BVec4A` that `bevy_reflect` requires unconditionally.
+denylist = ["enhanced-determinism"]
 
 # Features "dim2" and "dim3" are incompatible, so skip permutations including them
-skip_feature_sets = [["enhanced-determinism", "simd-stable"]]
+skip_feature_sets = [["enhanced-determinism", "simd8"]]
 
 always_include_features = ["dim2"]
 
