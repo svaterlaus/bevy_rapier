@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fix
+
+- `writeback_mass_properties` no longer panics on a `MassModifiedEvent` naming an entity that has
+  despawned since the event was written. Messages age across fixed ticks, so an event written from
+  `Update` can outlive its body. A live entity with no `RapierContextEntityLink` still panics.
+
 ### Modified
 
 - Update from rapier `0.33.0-alpha` to rapier `0.35.0-glamx0.2`.
